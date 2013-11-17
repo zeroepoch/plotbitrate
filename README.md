@@ -1,0 +1,4 @@
+plotbitrate
+===========
+
+FFProbe Bitrate Graph
