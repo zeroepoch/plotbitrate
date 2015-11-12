@@ -173,7 +173,7 @@ with subprocess.Popen(
 # end frame subprocess
 
 # setup new figure
-matplot.figure()
+matplot.figure().canvas.set_window_title(args.input)
 matplot.title("Stream Bitrate vs Time")
 matplot.xlabel("Time (sec)")
 matplot.ylabel("Frame Bitrate (kbit/s)")
