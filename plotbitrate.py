@@ -68,12 +68,6 @@ parser.add_argument('-f', '--format', help="output file format",
     choices=format_list)
 args = parser.parse_args()
 
-# check if input file exists
-if not os.path.exists(args.input):
-    sys.stderr.write(
-        "Error: Input file '{}' does not exist\n".format(args.input))
-    sys.exit(1)
-
 # check if format given w/o output file
 if args.format and not args.output:
     sys.stderr.write("Error: Output format requires output file\n")
