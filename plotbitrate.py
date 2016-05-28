@@ -2,7 +2,7 @@
 #
 # FFProbe Bitrate Graph
 #
-# Copyright (c) 2013, Eric Work
+# Copyright (c) 2013-2016, Eric Work
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -76,6 +76,7 @@ if args.format and not args.output:
 bitrate_data = {}
 frame_count = 0
 frame_rate = None
+frame_time = 0.0
 
 # get frame data for the selected stream
 with subprocess.Popen(
@@ -105,7 +106,8 @@ with subprocess.Popen(
         else:
             frame_type = node.get('pict_type')
 
-        # get frame rate only once
+        # get frame rate only once (assumes non-vbr)
+        # TODO: use 'pkt_duration_time' each time instead
         if frame_rate is None:
 
             # audio frame rate, 1 / frame duration
@@ -148,7 +150,15 @@ with subprocess.Popen(
         #
 
         # collect frame data
-        frame_time = float(node.get('pkt_pts_time'))
+        try:
+            frame_time = float(node.get('best_effort_timestamp_time'))
+        except:
+            try:
+                frame_time = float(node.get('pkt_pts_time'))
+            except:
+                if frame_count > 1:
+                    frame_time += float(node.get('pkt_duration_time'))
+
         frame_bitrate = (float(node.get('pkt_size')) * 8 / 1000) * frame_rate
         frame = (frame_time, frame_bitrate)
 
