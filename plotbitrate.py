@@ -66,11 +66,18 @@ parser.add_argument('-s', '--stream', help="stream type",
 parser.add_argument('-o', '--output', help="output file")
 parser.add_argument('-f', '--format', help="output file format",
     choices=format_list)
+parser.add_argument('--min', help="set plot minimum (kbps)", type=int)
+parser.add_argument('--max', help="set plot maximum (kbps)", type=int)
 args = parser.parse_args()
 
 # check if format given w/o output file
 if args.format and not args.output:
     sys.stderr.write("Error: Output format requires output file\n")
+    sys.exit(1)
+
+# check given y-axis limits
+if args.min and args.max and (args.min >= args.max):
+    sys.stderr.write("Error: Maximum should be greater than minimum\n")
     sys.exit(1)
 
 bitrate_data = {}
@@ -222,9 +229,16 @@ for frame_type in ['I', 'P', 'B', 'A']:
         color=frame_type_color[frame_type],
         label="{} Frames".format(frame_type))
 
+# set y-axis limits if requested
+if args.min:
+    matplot.ylim(ymin=args.min)
+if args.max:
+    matplot.ylim(ymax=args.max)
+
 # calculate peak line position (left 15%, above line)
 peak_text_x = matplot.xlim()[1] * 0.15
-peak_text_y = global_peak_bitrate + (matplot.ylim()[1] * 0.015)
+peak_text_y = global_peak_bitrate + \
+    ((matplot.ylim()[1] - matplot.ylim()[0]) * 0.015)
 peak_text = "peak ({:.0f})".format(global_peak_bitrate)
 
 # draw peak as think black line w/ text
@@ -234,7 +248,8 @@ matplot.text(peak_text_x, peak_text_y, peak_text,
 
 # calculate mean line position (right 85%, above line)
 mean_text_x = matplot.xlim()[1] * 0.85
-mean_text_y = global_mean_bitrate + (matplot.ylim()[1] * 0.015)
+mean_text_y = global_mean_bitrate + \
+    ((matplot.ylim()[1] - matplot.ylim()[0]) * 0.015)
 mean_text = "mean ({:.0f})".format(global_mean_bitrate)
 
 # draw mean as think black line w/ text
