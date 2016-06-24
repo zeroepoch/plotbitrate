@@ -8,7 +8,7 @@ stream over time.  To get the frame bitrate data ffprobe is used from the
 ffmpeg package.  The ffprobe data is streamed to python as xml frame metadata
 and sorted by frame type.  Matplotlib is used to plot each frame type on the
 same graph with lines for the peak and mean bitrates.  The resulting bitrate
-graph can be saved as an image.  Variable bitrate streams are not currently
+graph can be saved as an image.  Variable framerate streams are not currently
 accurately calculated.
 
 Requirements:

@@ -8,8 +8,8 @@
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
-#   Redistributions of source code must retain the above copyright notice, this
-#   list of conditions and the following disclaimer.
+#   Redistributions of source code must retain the above copyright notice,
+#   this list of conditions and the following disclaimer.
 #
 #   Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
@@ -28,7 +28,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-import sys, os
+import sys
 import shutil
 import argparse
 import subprocess
@@ -60,7 +60,7 @@ matplot.close()  # destroy test figure
 # parse command line arguments
 parser = argparse.ArgumentParser(
     description="Graph bitrate for audio/video stream")
-parser.add_argument('input', help="input file", metavar="INPUT")
+parser.add_argument('input', help="input file/stream", metavar="INPUT")
 parser.add_argument('-s', '--stream', help="stream type",
     choices=["audio", "video"], default="video")
 parser.add_argument('-o', '--output', help="output file")
@@ -87,10 +87,10 @@ with subprocess.Popen(
         args.input
     ],
     stdout=subprocess.PIPE,
-    stderr=subprocess.DEVNULL) as proc:
+    stderr=subprocess.DEVNULL) as proc_frame:
 
     # process xml elements as they close
-    for event in etree.iterparse(proc.stdout):
+    for event in etree.iterparse(proc_frame.stdout):
 
         # skip non-frame elements
         node = event[1]
@@ -106,7 +106,7 @@ with subprocess.Popen(
         else:
             frame_type = node.get('pict_type')
 
-        # get frame rate only once (assumes non-vbr)
+        # get frame rate only once (assumes non-variable framerate)
         # TODO: use 'pkt_duration_time' each time instead
         if frame_rate is None:
 
@@ -124,10 +124,10 @@ with subprocess.Popen(
                         args.input
                     ],
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL) as proc:
+                    stderr=subprocess.DEVNULL) as proc_stream:
 
                     # parse stream header xml
-                    stream_data = etree.parse(proc.stdout)
+                    stream_data = etree.parse(proc_stream.stdout)
                     stream_elem = stream_data.find('.//stream')
 
                     # compute frame rate from ratio
