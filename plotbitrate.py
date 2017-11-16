@@ -2,7 +2,7 @@
 #
 # FFProbe Bitrate Graph
 #
-# Copyright (c) 2013-2016, Eric Work
+# Copyright (c) 2013-2017, Eric Work
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -85,11 +85,19 @@ frame_count = 0
 frame_rate = None
 frame_time = 0.0
 
+# set ffprobe stream specifier
+if args.stream == 'audio':
+    stream_spec = 'a'
+elif args.stream == 'video':
+    stream_spec = 'V'
+else:
+    raise RuntimeError("Invalid stream type")
+
 # get frame data for the selected stream
 with subprocess.Popen(
     ["ffprobe",
         "-show_entries", "frame",
-        "-select_streams", args.stream[0],
+        "-select_streams", stream_spec,
         "-print_format", "xml",
         args.input
     ],
@@ -126,7 +134,7 @@ with subprocess.Popen(
                 with subprocess.Popen(
                     ["ffprobe",
                         "-show_entries", "stream",
-                        "-select_streams", "v",
+                        "-select_streams", "V",
                         "-print_format", "xml",
                         args.input
                     ],
