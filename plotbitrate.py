@@ -32,6 +32,7 @@ import sys
 import shutil
 import argparse
 import subprocess
+import csv
 
 # prefer C-based ElementTree
 try:
@@ -56,6 +57,8 @@ if not shutil.which("ffprobe"):
 format_list = list(
     matplot.figure().canvas.get_supported_filetypes().keys())
 matplot.close()  # destroy test figure
+
+format_list.append('csv')
 
 # parse command line arguments
 parser = argparse.ArgumentParser(
@@ -191,6 +194,51 @@ with subprocess.Popen(
 
 # end frame subprocess
 
+# save to csv if requested
+if args.format=='csv':
+    # While saving, reformat the data so a line in the csv looks like:
+    # time, rate_of_frame_type_1, rate_of_frame_type_2, ...
+    frame_names = sorted( list(bitrate_data.keys()) )
+    read_positions=dict.fromkeys(frame_names, 0)
+    last_Values=dict.fromkeys(frame_names, 0)
+    time=0
+    next_time=-1
+
+    with open (args.output, 'w', newline='') as csvfile:
+        fieldnames=frame_names
+        fieldnames.insert(0, 'Time')
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        
+        while True:
+            
+            # check if any data remaining
+            data_left=False
+
+            for k in list(bitrate_data.keys()):
+                if len ( bitrate_data[k]) > read_positions[k]:
+                    data_left=True
+                    break
+                    
+            if not data_left:
+                break
+
+            # find which frame contains the nearest next time value to use
+            for k in bitrate_data.keys():
+                if len ( bitrate_data[k]) > read_positions[k]:
+                    if next_time == -1 or next_time > bitrate_data[k][ read_positions[k] ][0]:
+                        next_time = bitrate_data[k][ read_positions[k] ][0]
+
+            row=dict.fromkeys(frame_names, 0).copy()
+            for k in bitrate_data.keys():
+                if len ( bitrate_data[k]) > read_positions[k]:
+                    if bitrate_data[k][ read_positions[k] ][0] == next_time:
+                        row[k]=bitrate_data[k][ read_positions[k] ][1]
+                        read_positions[k] += 1
+            row['Time']=next_time
+            writer.writerow(row)
+            next_time=-1
+
 # setup new figure
 matplot.figure().canvas.set_window_title(args.input)
 matplot.title("Stream Bitrate vs Time")
@@ -268,7 +316,7 @@ matplot.text(mean_text_x, mean_text_y, mean_text,
 matplot.legend()
 
 # render graph to file (if requested) or screen
-if args.output:
+if args.output and args.format!='csv':
     matplot.savefig(args.output, format=args.format)
 else:
     matplot.show()
