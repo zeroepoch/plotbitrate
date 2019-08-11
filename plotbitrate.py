@@ -66,6 +66,8 @@ parser.add_argument('-s', '--stream', help="stream type",
 parser.add_argument('-o', '--output', help="output file")
 parser.add_argument('-f', '--format', help="output file format",
     choices=format_list)
+parser.add_argument('-p', '--progress', help="show progress",
+    action='store_true')
 parser.add_argument('--min', help="set plot minimum (kbps)", type=int)
 parser.add_argument('--max', help="set plot maximum (kbps)", type=int)
 args = parser.parse_args()
@@ -84,6 +86,29 @@ bitrate_data = {}
 frame_count = 0
 frame_rate = None
 frame_time = 0.0
+total_time = None
+
+# get stream duration from the container
+if args.progress:
+    with subprocess.Popen(
+        ["ffprobe",
+            "-show_entries", "format",
+            "-print_format", "xml",
+            args.input
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL) as proc_format:
+
+        # parse format header xml
+        format_data = etree.parse(proc_format.stdout)
+        format_elem = format_data.find('.//format')
+
+        # save the total time for later
+        try:
+            total_time = float(format_elem.get('duration'))
+        except:
+            sys.stderr.write("Error: Failed to determine stream duration\n")
+            sys.exit(1)
 
 # set ffprobe stream specifier
 if args.stream == 'audio':
@@ -184,12 +209,21 @@ with subprocess.Popen(
         # append frame to list by type
         bitrate_data[frame_type].append(frame)
 
+        # print progress if total time is known
+        if total_time is not None:
+            percent = (frame_time / total_time) * 100.0
+            sys.stdout.write("\rProgress: {:5.2f}%".format(percent))
+
     # check if ffprobe was successful
     if frame_count == 0:
         sys.stderr.write("Error: No frame data, failed to execute ffprobe\n")
         sys.exit(1)
 
 # end frame subprocess
+
+# terminate progress line
+if args.progress:
+    print(flush=True)
 
 # setup new figure
 matplot.figure().canvas.set_window_title(args.input)
