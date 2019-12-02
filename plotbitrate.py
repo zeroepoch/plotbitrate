@@ -32,6 +32,7 @@ import sys
 import shutil
 import argparse
 import subprocess
+import multiprocessing
 
 # prefer C-based ElementTree
 try:
@@ -123,6 +124,7 @@ with subprocess.Popen(
     ["ffprobe",
         "-show_entries", "frame",
         "-select_streams", stream_spec,
+        "-threads", str(multiprocessing.cpu_count()),
         "-print_format", "xml",
         args.input
     ],
