@@ -265,17 +265,23 @@ if args.show_frame_types and args.stream == 'video':
     sums_of_values = ()
 
     for frame_type in ['I', 'B', 'P']:
-        filtered_frames = (frame for frame in frames_raw 
-                           if frame.type == frame_type)
+        filtered_frames = [frame for frame in frames_raw 
+                           if frame.type == frame_type]
+
+        if len(filtered_frames) == 0:
+            continue
+
         seconds_with_bitrates = group_frames_to_seconds(
             filtered_frames, 0, total_time_last_second)
 
-        matplot.bar(
-            seconds_with_bitrates.keys(), 
-            seconds_with_bitrates.values(),
-            bottom=sums_of_values if len(sums_of_values) > 0 else 0,
-            color=Color[frame_type].value,
-            width=1)
+        bar = matplot.bar(
+                seconds_with_bitrates.keys(), 
+                seconds_with_bitrates.values(),
+                bottom=sums_of_values if len(sums_of_values) > 0 else 0,
+                color=Color[frame_type].value,
+                width=1)
+        
+        bars[frame_type] = bar
         
         # add current bitrate values to all previous
         # needed so that the stacking bars know their min value
