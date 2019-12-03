@@ -177,11 +177,6 @@ def read_frame_data(source_iterable, frame_read_callback):
     
     return data
 
-def report_frame_progress(frame, total_time):
-    if total_time is not None:
-        percent = (frame.time / total_time) * 100.0
-        sys.stdout.write("\rProgress: {:5.2f}%".format(percent))
-
 def group_frames_to_seconds(frames, seconds_start, seconds_end, seconds_step=1):
     # create an index for lookup performance
     frames_indexed_by_seconds = {}
@@ -231,7 +226,14 @@ else:
     frames_source = etree.iterparse(proc_frame.stdout)
 
 if args.progress:
-    report_func = lambda frame: report_frame_progress(frame, total_time)
+    last_percent = 0
+    def report_progress(frame):
+        global last_percent
+        percent = math.floor((frame.time / total_time) * 100.0)
+        if percent > last_percent:
+            sys.stdout.write("\rProgress: {:2}%".format(percent))
+            last_percent = percent
+    report_func = report_progress
 else:
     report_func = None
 
@@ -243,8 +245,6 @@ if args.progress:
 if len(frames_raw) == 0:
     sys.stderr.write("Error: No frame data, failed to execute ffprobe\n")
     sys.exit(1)
-
-
 
 # setup new figure
 matplot.figure(figsize=[10, 4]).canvas.set_window_title(args.input)
