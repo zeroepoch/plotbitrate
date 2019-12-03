@@ -36,6 +36,7 @@ import multiprocessing
 import math
 import collections
 import statistics
+import csv
 from enum import Enum
 
 # prefer C-based ElementTree
@@ -61,6 +62,9 @@ if not shutil.which("ffprobe"):
 format_list = list(
     matplot.figure().canvas.get_supported_filetypes().keys())
 matplot.close()  # destroy test figure
+
+format_list.append('xml_raw')
+format_list.append('csv_raw')
 
 # parse command line arguments
 parser = argparse.ArgumentParser(
@@ -139,6 +143,27 @@ def open_ffprobe_get_frames(filepath, stream_selector):
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL)
 
+def save_raw_xml(filepath, target_path, stream_selector):
+    with open(target_path, "w") as f:
+        subprocess.call(
+            ["ffprobe",
+                "-select_streams", stream_selector,
+                "-threads", str(multiprocessing.cpu_count()),
+                "-print_format", "xml",
+                "-show_entries",
+                "format:frame=pict_type,pkt_duration_time,pkt_pts_time," + 
+                "best_effort_timestamp_time,pkt_size",
+                filepath
+            ], 
+            stdout=f,
+            stderr=subprocess.DEVNULL)
+
+def save_raw_csv(raw_frames, target_path):
+    with open(target_path, "w") as f:
+        wr = csv.writer(f, quoting=csv.QUOTE_ALL)
+        wr.writerow(Frame._fields)
+        wr.writerows(raw_frames)
+
 def read_total_time_from_format_xml(source):
     format_data = etree.parse(source)
     format_elem = format_data.find('.//format')
@@ -203,6 +228,9 @@ def group_frames_to_seconds(frames, seconds_start, seconds_end, seconds_step=1):
             second_substep += 1
     return mapped_data
 
+if args.format == 'xml_raw':
+    save_raw_xml(args.input, args.output, stream_spec)
+    sys.exit(0)
 
 total_time = None
 from_xml = args.input.endswith('.xml')
@@ -238,6 +266,7 @@ else:
     report_func = None
 
 frames_raw = read_frame_data(frames_source, report_func)
+
 if args.progress:
     print(flush=True)
 
@@ -245,6 +274,10 @@ if args.progress:
 if len(frames_raw) == 0:
     sys.stderr.write("Error: No frame data, failed to execute ffprobe\n")
     sys.exit(1)
+
+if args.format == 'csv_raw':
+    save_raw_csv(frames_raw, args.output)
+    sys.exit(0)
 
 # setup new figure
 matplot.figure(figsize=[10, 4]).canvas.set_window_title(args.input)
