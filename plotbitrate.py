@@ -38,6 +38,7 @@ import collections
 import statistics
 import csv
 from enum import Enum
+from typing import Callable, Union, List, IO, Iterable
 
 # prefer C-based ElementTree
 try:
@@ -63,27 +64,27 @@ format_list = list(
     matplot.figure().canvas.get_supported_filetypes().keys())
 matplot.close()  # destroy test figure
 
-format_list.append('xml_raw')
-format_list.append('csv_raw')
+format_list.append("xml_raw")
+format_list.append("csv_raw")
 
 # parse command line arguments
 parser = argparse.ArgumentParser(
     description="Graph bitrate for audio/video stream")
-parser.add_argument('input', help="input file/stream", metavar="INPUT")
-parser.add_argument('-s', '--stream', help="stream type (default: video)",
+parser.add_argument("input", help="input file/stream", metavar="INPUT")
+parser.add_argument("-s", "--stream", help="stream type (default: video)",
                     choices=["audio", "video"], default="video")
-parser.add_argument('-o', '--output', help="output file")
-parser.add_argument('-f', '--format', help="output file format",
+parser.add_argument("-o", "--output", help="output file")
+parser.add_argument("-f", "--format", help="output file format",
                     choices=format_list)
-parser.add_argument('-p', '--progress', help="show progress",
-                    action='store_true')
-parser.add_argument('--min', help="set plot minimum (kbps)", type=int)
-parser.add_argument('--max', help="set plot maximum (kbps)", type=int)
-parser.add_argument('-t', '--show-frame-types',
+parser.add_argument("-p", "--progress", help="show progress",
+                    action="store_true")
+parser.add_argument("--min", help="set plot minimum (kbps)", type=int)
+parser.add_argument("--max", help="set plot maximum (kbps)", type=int)
+parser.add_argument("-t", "--show-frame-types",
                     help="shot bitrate of different frame types",
-                    action='store_true')
+                    action="store_true")
 parser.add_argument(
-    '--max-display-values', 
+    "--max-display-values", 
     help="set the maximum number of values shown on the x axis. " + 
     "will downscale if video length is longer than the given value. " + 
     "for no downscaling set to -1. not compatible with option --show-frame-types " + 
@@ -103,23 +104,28 @@ if args.min and args.max and (args.min >= args.max):
     sys.exit(1)
 
 # set ffprobe stream specifier
-if args.stream == 'audio':
-    stream_spec = 'a'
-elif args.stream == 'video':
-    stream_spec = 'V'
+if args.stream == "audio":
+    stream_spec = "a"
+elif args.stream == "video":
+    stream_spec = "V"
 else:
     raise RuntimeError("Invalid stream type")
 
-Frame = collections.namedtuple('Frame', ['time', 'size_kbit', 'type'])
+# datatype for raw frame data
+Frame = collections.namedtuple("Frame", ["time", "size_kbit", "type"])
 
 class Color(Enum):
-    I = 'red'
-    P = 'green'
-    B = 'blue'
-    AUDIO = 'indianred'
-    FRAME = 'indianred'
+    I = "red"
+    P = "green"
+    B = "blue"
+    AUDIO = "indianred"
+    FRAME = "indianred"
 
-def open_ffprobe_get_format(filepath):
+
+def open_ffprobe_get_format(filepath: str) -> subprocess.Popen:
+    """ Opens an ffprobe process that reads the format data
+    for filepath and returns the process.
+    """
     return subprocess.Popen(
         ["ffprobe",
             "-show_entries", "format",
@@ -129,7 +135,12 @@ def open_ffprobe_get_format(filepath):
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL)
 
-def open_ffprobe_get_frames(filepath, stream_selector):
+
+def open_ffprobe_get_frames(
+    filepath: str, stream_selector: str) -> subprocess.Popen:
+    """ Opens an ffprobe process that reads all frame data for
+    filepath and returns the process.
+    """
     return subprocess.Popen(
         ["ffprobe",
             "-select_streams", stream_selector,
@@ -143,7 +154,9 @@ def open_ffprobe_get_frames(filepath, stream_selector):
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL)
 
-def save_raw_xml(filepath, target_path, stream_selector):
+
+def save_raw_xml(filepath: str, target_path: str, stream_selector: str) -> None:
+    """ Reads all raw frame data from filepath and saves it to target_path. """
     with open(target_path, "w") as f:
         subprocess.call(
             ["ffprobe",
@@ -158,41 +171,53 @@ def save_raw_xml(filepath, target_path, stream_selector):
             stdout=f,
             stderr=subprocess.DEVNULL)
 
-def save_raw_csv(raw_frames, target_path):
+
+def save_raw_csv(raw_frames: List[Frame], target_path: str) -> None:
+    """ Saves raw_frames as a csv file. """
     with open(target_path, "w") as f:
         wr = csv.writer(f, quoting=csv.QUOTE_ALL)
         wr.writerow(Frame._fields)
         wr.writerows(raw_frames)
 
-def read_total_time_from_format_xml(source):
-    format_data = etree.parse(source)
-    format_elem = format_data.find('.//format')
-    return float(format_elem.get('duration'))
 
-def read_frame_data(source_iterable, frame_read_callback):
+def read_total_time_from_format_xml(source: Union[str, IO]) -> float:
+    """ Parses the source and returns the extracted total duration. """
+    format_data = etree.parse(source)
+    format_elem = format_data.find(".//format")
+    return float(format_elem.get("duration"))
+
+
+def read_frame_data(
+        source_iterable: Iterable, 
+        frame_read_callback: Callable[[Frame], None]
+        ) -> List[Frame]:
+    """ Iterates over source_iterabe and creates a list of Frame objects.
+    Will call frame_read_callback on the end of each loop so that progess
+    can be calculated.
+    """
     data = []
     frame_count = 0
     for event in source_iterable:
 
         # skip non-frame elements
         node = event[1]
-        if node.tag != 'frame':
+        if node.tag != "frame":
             continue
 
         frame_count += 1
-        frame_type = node.get('pict_type')
+        frame_type = node.get("pict_type")
 
         # collect frame data
         try:
-            frame_time = float(node.get('best_effort_timestamp_time'))
+            frame_time = float(node.get("best_effort_timestamp_time"))
         except:
             try:
-                frame_time = float(node.get('pkt_pts_time'))
+                frame_time = float(node.get("pkt_pts_time"))
             except:
                 if frame_count > 1:
-                    frame_time += float(node.get('pkt_duration_time'))
+                    frame_time += float(node.get("pkt_duration_time"))
 
-        frame_size_in_kbit = (float(node.get('pkt_size')) * 8 / 1000)
+        frame_size_in_kbit = (float(node.get("pkt_size")) * 8 / 1000)
 
         frame = Frame(frame_time, frame_size_in_kbit, frame_type)
         data.append(frame)
@@ -202,7 +227,35 @@ def read_frame_data(source_iterable, frame_read_callback):
     
     return data
 
-def group_frames_to_seconds(frames, seconds_start, seconds_end, seconds_step=1):
+
+def group_frames_to_seconds(
+        frames: List[Frame], 
+        seconds_start: int, 
+        seconds_end: int,
+        seconds_step: int = 1):
+    """ Iterates from seconds_start to seconds_end and groups
+    all frame data by its whole second.
+    The second is floored,
+    so all data of the first second will be in second 0.
+    If seconds_step is greater than 1, 
+    the result will not contain every second in between.
+    In this case, for each result second, the highest bitrate
+    of this second and all up to the next will be chosen.
+
+    Example:
+    seconds_start=0, seconds_end=10, seconds_step=3
+
+    bitrate of second 0 is 3400
+    bitrate of second 1 is 5290
+    bitrate of second 2 is 4999
+    ...
+
+    The result will contain second 0 with bitrate 5290 (the highest),
+    but not second 1 or 2.
+    The next result second will be 3, containing the highest bitrate
+    of itself and the next 2 seconds, and so on.
+
+    """
     # create an index for lookup performance
     frames_indexed_by_seconds = {}
     for frame in frames:
@@ -228,36 +281,39 @@ def group_frames_to_seconds(frames, seconds_start, seconds_end, seconds_step=1):
             second_substep += 1
     return mapped_data
 
-if args.format == 'xml_raw':
+
+# if the output is raw xml, just call the function and exit
+if args.format == "xml_raw":
     save_raw_xml(args.input, args.output, stream_spec)
     sys.exit(0)
 
-total_time = None
-from_xml = args.input.endswith('.xml')
+total_media_time_in_seconds: float = None
+source_is_xml: bool = args.input.endswith(".xml")
 
 # read total time from format
 try:
-    if from_xml:
-        total_time = read_total_time_from_format_xml(args.input)
+    if source_is_xml:
+        total_media_time_in_seconds = read_total_time_from_format_xml(args.input)
     else:
         proc = open_ffprobe_get_format(args.input)
-        total_time = read_total_time_from_format_xml(proc.stdout)
+        total_media_time_in_seconds = read_total_time_from_format_xml(proc.stdout)
 except:
     sys.stderr.write("Error: Failed to determine stream duration\n")
     sys.exit(1)
 
-# read frames from file
-if from_xml:
+# open frame data reader for media or xml file
+if source_is_xml:
     frames_source = etree.iterparse(args.input)
 else:
     proc_frame = open_ffprobe_get_frames(args.input, stream_spec)
     frames_source = etree.iterparse(proc_frame.stdout)
 
 if args.progress:
+    # prepare a progress callback function
     last_percent = 0
     def report_progress(frame):
         global last_percent
-        percent = math.floor((frame.time / total_time) * 100.0)
+        percent = math.floor((frame.time / total_media_time_in_seconds) * 100.0)
         if percent > last_percent:
             sys.stdout.write("\rProgress: {:2}%".format(percent))
             last_percent = percent
@@ -265,7 +321,8 @@ if args.progress:
 else:
     report_func = None
 
-frames_raw = read_frame_data(frames_source, report_func)
+# read frame data
+frames_raw: List[Frame] = read_frame_data(frames_source, report_func)
 
 if args.progress:
     print(flush=True)
@@ -275,37 +332,38 @@ if len(frames_raw) == 0:
     sys.stderr.write("Error: No frame data, failed to execute ffprobe\n")
     sys.exit(1)
 
-if args.format == 'csv_raw':
+# if the output is csv raw, write the file and we're done
+if args.format == "csv_raw":
     save_raw_csv(frames_raw, args.output)
     sys.exit(0)
 
-# setup new figure
+# prepare the chart and setup new figure
 matplot.figure(figsize=[10, 4]).canvas.set_window_title(args.input)
 matplot.title("Stream Bitrate over Time")
 matplot.xlabel("Time (sec)")
 matplot.ylabel("Bitrate (kbit/s)")
-matplot.grid(True, axis='y')
+matplot.grid(True, axis="y")
 matplot.tight_layout()
 
-total_time_last_second = math.floor(total_time)
-global_peak_bitrate = 0
-global_mean_bitrate = 0
-bars = {}
+total_media_time_in_seconds_floored: int = math.floor(total_media_time_in_seconds)
+global_peak_bitrate: int = 0
+global_mean_bitrate: int = 0
+bars: dict = {}
 
-# add a statcking bar for each frame type
-if args.show_frame_types and args.stream == 'video':
+if args.show_frame_types and args.stream == "video":
+    # calculate bitrate for each frame type
+    # and add a statcking bar for each
 
     sums_of_values = ()
-
-    for frame_type in ['I', 'B', 'P', '?']:
+    for frame_type in ["I", "B", "P", "?"]:
         filtered_frames = [frame for frame in frames_raw 
                            if frame.type == frame_type]
-
         if len(filtered_frames) == 0:
             continue
 
+        # simple frame grouping to seconds
         seconds_with_bitrates = group_frames_to_seconds(
-            filtered_frames, 0, total_time_last_second)
+            filtered_frames, 0, total_media_time_in_seconds_floored)
 
         bar = matplot.bar(
                 seconds_with_bitrates.keys(), 
@@ -313,11 +371,11 @@ if args.show_frame_types and args.stream == 'video':
                 bottom=sums_of_values if len(sums_of_values) > 0 else 0,
                 color=Color[frame_type].value if frame_type in dir(Color) else Color.FRAME,
                 width=1)
-        
         bars[frame_type] = bar
         
-        # add current bitrate values to all previous
+        # add current frame bitrate values to all previous
         # needed so that the stacking bars know their min value
+        # and so that the peak and mean can be calculated
         if len(sums_of_values) == 0:
             sums_of_values = list(seconds_with_bitrates.values())
         else:
@@ -328,17 +386,19 @@ if args.show_frame_types and args.stream == 'video':
     global_mean_bitrate = statistics.mean(sums_of_values)
 
 else:
-    second_steps = max(1, math.floor(total_time / args.max_display_values)) \
+    # calculate how many seconds in between should be left out
+    # so that only a maximum of 'args.max_display_values' number of values are shown
+    second_steps = max(1, math.floor(total_media_time_in_seconds / args.max_display_values)) \
                    if args.max_display_values >= 1 else 1
     seconds_with_bitrates = group_frames_to_seconds(
-        frames_raw, 0, total_time_last_second, second_steps)
+        frames_raw, 0, total_media_time_in_seconds_floored, second_steps)
 
-    if args.stream == 'audio':
+    if args.stream == "audio":
         color = Color.AUDIO.value
-    elif args.stream == 'video':
+    elif args.stream == "video":
         color = Color.FRAME.value
     else:
-        color = 'black'
+        color = "black"
 
     matplot.bar(
         seconds_with_bitrates.keys(), 
@@ -346,8 +406,11 @@ else:
         color=color,
         width=second_steps)
 
+    # group the raw frames to seconds again
+    # but this time without leaving out any seconds
+    # to calculate the peak and mean
     seconds_with_bitrates = group_frames_to_seconds(
-        frames_raw, 0, total_time_last_second)
+        frames_raw, 0, total_media_time_in_seconds_floored)
     global_peak_bitrate = max(seconds_with_bitrates.values())
     global_mean_bitrate = statistics.mean(seconds_with_bitrates.values())
 
@@ -364,9 +427,9 @@ peak_text_y = global_peak_bitrate + \
 peak_text = "peak ({:.0f})".format(global_peak_bitrate)
 
 # draw peak as think black line w/ text
-matplot.axhline(global_peak_bitrate, linewidth=1.5, color='black')
+matplot.axhline(global_peak_bitrate, linewidth=1.5, color="black")
 matplot.text(peak_text_x, peak_text_y, peak_text,
-             horizontalalignment='center', fontweight='bold', color='black')
+             horizontalalignment="center", fontweight="bold", color="black")
 
 # calculate mean line position (right 85%, above line)
 mean_text_x = matplot.xlim()[1] * 0.85
@@ -375,9 +438,9 @@ mean_text_y = global_mean_bitrate + \
 mean_text = "mean ({:.0f})".format(global_mean_bitrate)
 
 # draw mean as think black line w/ text
-matplot.axhline(global_mean_bitrate, linewidth=1.5, color='black')
+matplot.axhline(global_mean_bitrate, linewidth=1.5, color="black")
 matplot.text(mean_text_x, mean_text_y, mean_text,
-             horizontalalignment='center', fontweight='bold', color='black')
+             horizontalalignment="center", fontweight="bold", color="black")
 
 if len(bars) > 1:
     matplot.legend(bars.values(), bars.keys())
