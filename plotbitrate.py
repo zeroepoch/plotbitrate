@@ -85,8 +85,8 @@ parser.add_argument('-t', '--show-frame-types',
 parser.add_argument(
     '--max-display-values', 
     help="set the maximum number of values shown on the x axis. " + 
-    "will downscale if video length is higher than given value. " + 
-    "for no downscaling set to 0. not compatible with option --show-frame-types " + 
+    "will downscale if video length is longer than the given value. " + 
+    "for no downscaling set to -1. not compatible with option --show-frame-types " + 
     "(default: 700)", 
     type=int,
     default=700)
