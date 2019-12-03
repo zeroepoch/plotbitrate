@@ -369,7 +369,7 @@ if args.show_frame_types and args.stream == "video":
                 seconds_with_bitrates.keys(), 
                 seconds_with_bitrates.values(),
                 bottom=sums_of_values if len(sums_of_values) > 0 else 0,
-                color=Color[frame_type].value if frame_type in dir(Color) else Color.FRAME,
+                color=Color[frame_type].value if frame_type in dir(Color) else Color.FRAME.value,
                 width=1)
         bars[frame_type] = bar
         
