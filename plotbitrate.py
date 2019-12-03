@@ -442,7 +442,7 @@ matplot.axhline(global_mean_bitrate, linewidth=1.5, color="black")
 matplot.text(mean_text_x, mean_text_y, mean_text,
              horizontalalignment="center", fontweight="bold", color="black")
 
-if len(bars) > 1:
+if len(bars) >= 1:
     matplot.legend(bars.values(), bars.keys())
 
 # render graph to file (if requested) or screen
