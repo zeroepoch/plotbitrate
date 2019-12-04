@@ -2,7 +2,8 @@
 #
 # FFProbe Bitrate Graph
 #
-# Copyright (c) 2013-2019, Eric Work
+# Original work Copyright (c) 2013-2019, Eric Work
+# Modified work Copyright (c) 2019, Steve Schmidt
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
