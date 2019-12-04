@@ -54,10 +54,9 @@ Show audio stream bitrate in a window.
 ```
 
 Save raw ffproble frame data as xml file.
-The option `--progress` is not (yet) available in this case.
 
 ```
-./plotbitrate.py -f xml_raw -o frames.xml input.mkv
+./plotbitrate.py -p -f xml_raw -o frames.xml input.mkv
 ```
 
 Show bitrate graph from raw xml.

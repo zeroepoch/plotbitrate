@@ -38,7 +38,7 @@ import collections
 import statistics
 import csv
 from enum import Enum
-from typing import Callable, Union, List, IO, Iterable
+from typing import Callable, Union, List, IO, Iterable, Optional
 
 # prefer C-based ElementTree
 try:
@@ -157,8 +157,18 @@ def open_ffprobe_get_frames(
 
 def save_raw_xml(filepath: str, target_path: str, stream_selector: str) -> None:
     """ Reads all raw frame data from filepath and saves it to target_path. """
-    with open(target_path, "w") as f:
-        subprocess.call(
+    if args.progress:
+        last_percent = 0
+        with open_ffprobe_get_format(args.input) as proc_format:
+            total_media_time_in_seconds = read_total_time_from_format_xml(
+                                            proc_format.stdout)
+
+    with open(target_path, "wb") as f:
+        # open and clear file
+        f.seek(0)
+        f.truncate()
+
+        with subprocess.Popen(
             ["ffprobe",
                 "-select_streams", stream_selector,
                 "-threads", str(multiprocessing.cpu_count()),
@@ -168,8 +178,27 @@ def save_raw_xml(filepath: str, target_path: str, stream_selector: str) -> None:
                 "best_effort_timestamp_time,pkt_size",
                 filepath
             ], 
-            stdout=f,
-            stderr=subprocess.DEVNULL)
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL) as proc:
+                # start process and iterate over output lines
+                for line in iter(proc.stdout):
+                    # if progress is enabled
+                    # look for lines starting with frame tag
+                    # try parsing the time from them and print percent
+                    if args.progress and line.lstrip().startswith(b"<frame "):
+                        try:
+                            frame_time = try_get_frame_time_from_node(
+                                etree.fromstring(line))
+                            percent = math.floor((frame_time / 
+                                total_media_time_in_seconds) * 100.0)
+                            if percent > last_percent:
+                                print_progress(percent)
+                                last_percent = percent
+                        except:
+                            pass
+                    f.write(line)
+                if args.progress:
+                    print(flush=True)
 
 
 def save_raw_csv(raw_frames: List[Frame], target_path: str) -> None:
@@ -185,6 +214,25 @@ def read_total_time_from_format_xml(source: Union[str, IO]) -> float:
     format_data = etree.parse(source)
     format_elem = format_data.find(".//format")
     return float(format_elem.get("duration"))
+
+
+def try_get_frame_time_from_node(
+        node: etree.ElementTree, frame_count: int = 0) -> Optional[float]:
+    frame_time = None
+    try:
+        frame_time = float(node.get("best_effort_timestamp_time"))
+    except:
+        try:
+            frame_time = float(node.get("pkt_pts_time"))
+        except:
+            if frame_count > 1:
+                frame_time += float(node.get("pkt_duration_time"))
+
+    return frame_time
+
+
+def print_progress(percent: float) -> None:
+    sys.stdout.write("\rProgress: {:2}%".format(percent))
 
 
 def read_frame_data(
@@ -205,20 +253,10 @@ def read_frame_data(
             continue
 
         frame_count += 1
+
         frame_type = node.get("pict_type")
-
-        # collect frame data
-        try:
-            frame_time = float(node.get("best_effort_timestamp_time"))
-        except:
-            try:
-                frame_time = float(node.get("pkt_pts_time"))
-            except:
-                if frame_count > 1:
-                    frame_time += float(node.get("pkt_duration_time"))
-
+        frame_time = try_get_frame_time_from_node(node)
         frame_size_in_kbit = (float(node.get("pkt_size")) * 8 / 1000)
-
         frame = Frame(frame_time, frame_size_in_kbit, frame_type)
         data.append(frame)
 
@@ -315,7 +353,7 @@ if args.progress:
         global last_percent
         percent = math.floor((frame.time / total_media_time_in_seconds) * 100.0)
         if percent > last_percent:
-            sys.stdout.write("\rProgress: {:2}%".format(percent))
+            print_progress(percent)
             last_percent = percent
     report_func = report_progress
 else:
