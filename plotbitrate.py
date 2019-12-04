@@ -128,12 +128,13 @@ def open_ffprobe_get_format(filepath: str) -> subprocess.Popen:
     """
     return subprocess.Popen(
         ["ffprobe",
+            "-hide_banner",
+            "-loglevel", "error",
             "-show_entries", "format",
             "-print_format", "xml",
             filepath
         ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL)
+        stdout=subprocess.PIPE)
 
 
 def open_ffprobe_get_frames(
@@ -143,6 +144,8 @@ def open_ffprobe_get_frames(
     """
     return subprocess.Popen(
         ["ffprobe",
+            "-hide_banner",
+            "-loglevel", "error",
             "-select_streams", stream_selector,
             "-threads", str(multiprocessing.cpu_count()),
             "-print_format", "xml",
@@ -151,8 +154,7 @@ def open_ffprobe_get_frames(
             "best_effort_timestamp_time,pkt_size",
             filepath
         ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL)
+        stdout=subprocess.PIPE)
 
 
 def save_raw_xml(filepath: str, target_path: str, stream_selector: str) -> None:
@@ -170,6 +172,8 @@ def save_raw_xml(filepath: str, target_path: str, stream_selector: str) -> None:
 
         with subprocess.Popen(
             ["ffprobe",
+                "-hide_banner",
+                "-loglevel", "error",
                 "-select_streams", stream_selector,
                 "-threads", str(multiprocessing.cpu_count()),
                 "-print_format", "xml",
@@ -178,8 +182,7 @@ def save_raw_xml(filepath: str, target_path: str, stream_selector: str) -> None:
                 "best_effort_timestamp_time,pkt_size",
                 filepath
             ], 
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL) as proc:
+            stdout=subprocess.PIPE) as proc:
                 # start process and iterate over output lines
                 for line in iter(proc.stdout):
                     # if progress is enabled
