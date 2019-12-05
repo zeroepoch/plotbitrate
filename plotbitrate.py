@@ -38,6 +38,7 @@ import math
 import collections
 import statistics
 import csv
+import datetime
 from enum import Enum
 from typing import Callable, Union, List, IO, Iterable, Optional
 
@@ -51,6 +52,7 @@ except ImportError:
 try:
     import numpy
     import matplotlib.pyplot as matplot
+    import matplotlib
 except ImportError:
     sys.stderr.write("Error: Missing package 'python3-matplotlib'\n")
     sys.exit(1)
@@ -382,10 +384,22 @@ if args.format == "csv_raw":
 # prepare the chart and setup new figure
 matplot.figure(figsize=[10, 4]).canvas.set_window_title(args.input)
 matplot.title("Stream Bitrate over Time")
-matplot.xlabel("Time (sec)")
+matplot.xlabel("Time")
 matplot.ylabel("Bitrate (kbit/s)")
 matplot.grid(True, axis="y")
 matplot.tight_layout()
+
+# set 10 x axes ticks
+matplot.xticks(range(
+    0, 
+    int(total_media_time_in_seconds) + 1, 
+    max(int(total_media_time_in_seconds / 10), 1)))
+
+# format axes values
+matplot.gcf().axes[0].xaxis.set_major_formatter(
+    matplotlib.ticker.FuncFormatter(lambda x, loc: datetime.timedelta(seconds=int(x))))  
+matplot.gca().get_yaxis().set_major_formatter(
+    matplotlib.ticker.FuncFormatter(lambda x, loc: "{:,}".format(int(x))))
 
 total_media_time_in_seconds_floored: int = math.floor(total_media_time_in_seconds)
 global_peak_bitrate: int = 0
@@ -462,22 +476,22 @@ if args.min:
 if args.max:
     matplot.ylim(ymax=args.max)
 
-# calculate peak line position (left 15%, above line)
-peak_text_x = matplot.xlim()[1] * 0.15
+# calculate peak line position (left 8%, above line)
+peak_text_x = matplot.xlim()[1] * 0.08
 peak_text_y = global_peak_bitrate + \
     ((matplot.ylim()[1] - matplot.ylim()[0]) * 0.015)
-peak_text = "peak ({:.0f})".format(global_peak_bitrate)
+peak_text = "peak ({:,})".format(int(global_peak_bitrate))
 
 # draw peak as think black line w/ text
 matplot.axhline(global_peak_bitrate, linewidth=1.5, color="black")
 matplot.text(peak_text_x, peak_text_y, peak_text,
              horizontalalignment="center", fontweight="bold", color="black")
 
-# calculate mean line position (right 85%, above line)
-mean_text_x = matplot.xlim()[1] * 0.85
+# calculate mean line position (right 92%, above line)
+mean_text_x = matplot.xlim()[1] * 0.92
 mean_text_y = global_mean_bitrate + \
     ((matplot.ylim()[1] - matplot.ylim()[0]) * 0.015)
-mean_text = "mean ({:.0f})".format(global_mean_bitrate)
+mean_text = "mean ({:,})".format(int(global_mean_bitrate))
 
 # draw mean as think black line w/ text
 matplot.axhline(global_mean_bitrate, linewidth=1.5, color="black")
