@@ -64,9 +64,9 @@ if not shutil.which("ffprobe"):
 
 # get list of supported matplotlib formats
 format_list = list(
-    matplot.figure().canvas.get_supported_filetypes().keys())
-matplot.close()  # destroy test figure
-
+    matplotlib.figure.Figure().canvas.get_supported_filetypes()\
+                                     .keys()
+)
 format_list.append("xml_raw")
 format_list.append("csv_raw")
 
