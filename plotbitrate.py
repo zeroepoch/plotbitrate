@@ -74,24 +74,33 @@ format_list.append("csv_raw")
 parser = argparse.ArgumentParser(
     description="Graph bitrate for audio/video stream")
 parser.add_argument("input", help="input file/stream", metavar="INPUT")
-parser.add_argument("-s", "--stream", help="stream type (default: video)",
+parser.add_argument("-s", "--stream", help="Stream type (default: video)",
                     choices=["audio", "video"], default="video")
-parser.add_argument("-o", "--output", help="output file")
-parser.add_argument("-f", "--format", help="output file format",
+parser.add_argument("-o", "--output", help="Output file")
+parser.add_argument("-f", "--format", help="Output file format",
                     choices=format_list)
-parser.add_argument("-p", "--progress", help="show progress",
+parser.add_argument("--no-progress", help="Hides progress",
                     action="store_true")
-parser.add_argument("--min", help="set plot minimum (kbps)", type=int)
-parser.add_argument("--max", help="set plot maximum (kbps)", type=int)
+parser.add_argument("--min", help="Set plot minimum (kbps)", type=int)
+parser.add_argument("--max", help="Set plot maximum (kbps)", type=int)
 parser.add_argument("-t", "--show-frame-types",
-                    help="shot bitrate of different frame types",
+                    help="Show bitrate of different frame types",
                     action="store_true")
 parser.add_argument(
+    "-d", 
+    "--downscale",
+    help="Enable downscaling of values, so that the visible level of detail " +
+    "in the graph is reduced and rendered faster. This is useful if the " + 
+    "video is very long and an overview of the bitrate fluctuation " +
+    "is sufficient.",
+    action="store_true")
+parser.add_argument(
     "--max-display-values", 
-    help="set the maximum number of values shown on the x axis. " + 
-    "will downscale if video length is longer than the given value. " + 
-    "for no downscaling set to -1. not compatible with option --show-frame-types " + 
-    "(default: 700)", 
+    help="If downscaling is enabled, set the maximum number of values " +
+    "shown on the x axis. " + 
+    "Will downscale if video length is longer than the given value. " + 
+    "Will not downscale if set to -1. Not compatible with option " +
+    "--show-frame-types (default: 700)",
     type=int,
     default=700)
 args = parser.parse_args()
@@ -162,7 +171,7 @@ def open_ffprobe_get_frames(
 
 def save_raw_xml(filepath: str, target_path: str, stream_selector: str) -> None:
     """ Reads all raw frame data from filepath and saves it to target_path. """
-    if args.progress:
+    if not args.no_progress:
         last_percent = 0
         with open_ffprobe_get_format(args.input) as proc_format:
             total_media_time_in_seconds = read_total_time_from_format_xml(
@@ -188,10 +197,10 @@ def save_raw_xml(filepath: str, target_path: str, stream_selector: str) -> None:
             stdout=subprocess.PIPE) as proc:
                 # start process and iterate over output lines
                 for line in iter(proc.stdout):
-                    # if progress is enabled
+                    # for progress
                     # look for lines starting with frame tag
                     # try parsing the time from them and print percent
-                    if args.progress and line.lstrip().startswith(b"<frame "):
+                    if not args.no_progress and line.lstrip().startswith(b"<frame "):
                         try:
                             frame_time = try_get_frame_time_from_node(
                                 etree.fromstring(line))
@@ -203,7 +212,7 @@ def save_raw_xml(filepath: str, target_path: str, stream_selector: str) -> None:
                         except:
                             pass
                     f.write(line)
-                if args.progress:
+                if not args.no_progress:
                     print(flush=True)
 
 
@@ -352,7 +361,7 @@ else:
     proc_frame = open_ffprobe_get_frames(args.input, stream_spec)
     frames_source = etree.iterparse(proc_frame.stdout)
 
-if args.progress:
+if not args.no_progress:
     # prepare a progress callback function
     last_percent = 0
     def report_progress(frame):
@@ -368,7 +377,7 @@ else:
 # read frame data
 frames_raw: List[Frame] = read_frame_data(frames_source, report_func)
 
-if args.progress:
+if not args.no_progress:
     print(flush=True)
 
 # check for success
@@ -442,10 +451,13 @@ if args.show_frame_types and args.stream == "video":
     global_mean_bitrate = statistics.mean(sums_of_values)
 
 else:
-    # calculate how many seconds in between should be left out
-    # so that only a maximum of 'args.max_display_values' number of values are shown
-    second_steps = max(1, math.floor(total_media_time_in_seconds / args.max_display_values)) \
-                   if args.max_display_values >= 1 else 1
+    second_steps = 1
+    if args.downscale:
+        # calculate how many seconds in between should be left out
+        # so that only a maximum of 'args.max_display_values' number of values are shown
+        second_steps = max(1, math.floor(total_media_time_in_seconds / args.max_display_values)) \
+                    if args.max_display_values >= 1 else 1
+        
     seconds_with_bitrates = group_frames_to_seconds(
         frames_raw, 0, total_media_time_in_seconds_floored, second_steps)
 
