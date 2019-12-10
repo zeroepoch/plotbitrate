@@ -11,4 +11,8 @@
 !.vscode/extensions.json
 *.code-workspace
 
+.idea
+
 /sample data/
+
+.mypy_cache
