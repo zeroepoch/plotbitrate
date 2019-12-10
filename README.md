@@ -16,7 +16,7 @@ Possible outputs are:
 
 Requirements:
 
-* Python 3.x
+* Python >= 3.6
 * FFMpeg >= 1.2 with the ffprobe command
 * Matplotlib python 3 library (install: `python3 -m pip install -U --user matplotlib`)
 
