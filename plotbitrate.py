@@ -40,7 +40,7 @@ import statistics
 import csv
 import datetime
 from enum import Enum
-from typing import Callable, Union, List, IO, Iterable, Optional, Dict
+from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple
 
 # prefer C-based ElementTree
 try:
@@ -54,12 +54,11 @@ try:
     import matplotlib.pyplot as matplot  # type: ignore
     import matplotlib  # type: ignore
 except ImportError:
-    sys.exit("Error: Missing package 'python3-matplotlib'\n")
+    sys.exit("Error: Missing package 'python3-matplotlib'")
 
 # check for ffprobe in path
 if not shutil.which("ffprobe"):
-    sys.exit("Error: Missing ffprobe from package 'ffmpeg'\n")
-
+    sys.exit("Error: Missing ffprobe from package 'ffmpeg'")
 
 __progress_last_percent: int = 0
 
@@ -104,28 +103,28 @@ def parse_arguments() -> argparse.Namespace:
         "-d",
         "--downscale",
         help="Enable downscaling of values, so that the visible" +
-        "level of detail in the graph is reduced and rendered faster. " +
-        "This is useful if the video is very long and an overview of the " +
-        "bitrate fluctuation is sufficient.",
+             "level of detail in the graph is reduced and rendered faster. " +
+             "This is useful if the video is very long and an overview of the " +
+             "bitrate fluctuation is sufficient.",
         action="store_true")
     parser.add_argument(
         "--max-display-values",
         help="If downscaling is enabled, set the maximum number of values " +
-        "shown on the x axis. " +
-        "Will downscale if video length is longer than the given value. " +
-        "Will not downscale if set to -1. Not compatible with option " +
-        "--show-frame-types (default: 700)",
+             "shown on the x axis. " +
+             "Will downscale if video length is longer than the given value. " +
+             "Will not downscale if set to -1. Not compatible with option " +
+             "--show-frame-types (default: 700)",
         type=int,
         default=700)
     arguments = parser.parse_args()
 
-    # check if format given w/o output file
+    # check if format given without output file
     if arguments.format and not arguments.output:
-        sys.exit("Error: Output format requires output file\n")
+        sys.exit("Error: Output format requires output file")
 
     # check given y-axis limits
     if arguments.min and arguments.max and (arguments.min >= arguments.max):
-        sys.exit("Error: Maximum should be greater than minimum\n")
+        sys.exit("Error: Maximum should be greater than minimum")
 
     arguments_dict = vars(arguments)
 
@@ -186,7 +185,7 @@ def save_raw_xml(
     if not no_progress:
         last_percent = 0
         with open_ffprobe_get_format(file_path) as proc_format:
-            media_time_in_seconds = read_total_time_from_format_xml(
+            media_time_in_seconds = read_media_duration_from_format_xml(
                 proc_format.stdout)
 
     with open(target_path, "wb") as f:
@@ -241,7 +240,7 @@ def save_raw_csv(raw_frames: List[Frame], target_path: str) -> None:
         wr.writerows(raw_frames)
 
 
-def read_total_time_from_format_xml(source: Union[str, IO]) -> float:
+def read_media_duration_from_format_xml(source: Union[str, IO]) -> float:
     """ Parses the source and returns the extracted total duration. """
     format_data = eTree.parse(source)
     format_elem = format_data.find(".//format")
@@ -268,7 +267,7 @@ def try_get_frame_time_from_node(node: eTree.Element) -> Optional[float]:
 def report_frame_progress(frame):
     global __progress_last_percent
     percent = math.floor(
-        (frame.time / total_media_time_in_seconds) * 100.0)
+        (frame.time / media_duration_in_s) * 100.0)
     if percent > __progress_last_percent:
         print_progress(percent)
         __progress_last_percent = percent
@@ -299,7 +298,7 @@ def read_frame_data(
 
         node_frame_type = node.get("pict_type")
         node_frame_time = try_get_frame_time_from_node(node)
-        node_frame_size_in_kbit = float(node.get("pkt_size")) * 8 / 1000
+        node_frame_size_in_kbit = int(float(node.get("pkt_size")) * 8 / 1000)
         frame = Frame(
             node_frame_time,
             node_frame_size_in_kbit,
@@ -322,7 +321,7 @@ def group_frames_to_seconds(
     all frame data by its whole second.
     The second is floored,
     so all data of the first second will be in second 0.
-    If seconds_step is greater than 1, 
+    If seconds_step is greater than 1,
     the result will not contain every second in between.
     In this case, for each result second, the highest bitrate
     of this second and all up to the next will be chosen.
@@ -374,6 +373,8 @@ def prepare_matplot(
         min_y: Optional[int],
         max_y: Optional[int]
 ) -> None:
+    """ Prepares the chart and sets up a new figure """
+
     matplot.figure(figsize=[10, 4]).canvas.set_window_title(window_title)
     matplot.title("Stream Bitrate over Time")
     matplot.xlabel("Time")
@@ -385,7 +386,7 @@ def prepare_matplot(
     matplot.xticks(range(
         0,
         total_media_time_in_seconds + 1,
-        max(int(total_media_time_in_seconds / 10), 1)))
+        max(total_media_time_in_seconds // 10, 1)))
 
     # format axes values
     matplot.gcf().axes[0].xaxis.set_major_formatter(
@@ -402,6 +403,111 @@ def prepare_matplot(
         matplot.ylim(ymax=max_y)
 
 
+def add_frames_as_stacked_bars(
+        frames: List[Frame],
+        media_duration_in_s: int
+) -> Tuple[int, int, Dict[str, matplotlib.container.BarContainer]]:
+    """ Calculates the bitrate for each frame type
+    and adds a stacking bar for each
+    """
+
+    bars = {}
+    sums_of_values: List[int] = []
+
+    # calculate bitrate for each frame type
+    # and add a stacking bar for each
+
+    for frame_type in ["I", "B", "P", "?"]:
+        filtered_frames = [frame for frame in frames
+                           if frame.type == frame_type]
+        if len(filtered_frames) == 0:
+            continue
+
+        # simple frame grouping to seconds
+        seconds_with_bitrates = group_frames_to_seconds(
+            filtered_frames, 0, media_duration_in_s)
+        bitrate_values = list(seconds_with_bitrates.values())
+
+        bar = matplot.bar(
+            seconds_with_bitrates.keys(),
+            bitrate_values,
+            bottom=sums_of_values if len(sums_of_values) > 0 else 0,
+            color=Color[frame_type].value if frame_type in dir(Color)
+            else Color.FRAME.value,
+            width=1)
+        bars[frame_type] = bar
+
+        # add current frame bitrate values to all previous
+        # needed so that the stacking bars know their min value
+        # and so that the peak and mean can be calculated
+        if len(sums_of_values) == 0:
+            sums_of_values = list(bitrate_values)
+        else:
+            sums_of_values = [x + y for x, y in zip(
+                sums_of_values, bitrate_values)]
+
+    peak_bitrate = max(sums_of_values)
+    mean_bitrate = int(statistics.mean(sums_of_values))
+
+    return peak_bitrate, mean_bitrate, bars
+
+
+def add_frames_as_bar(
+        frames: List[Frame],
+        media_duration_in_s: int,
+        downscale: bool,
+        max_display_values: int
+) -> Tuple[int, int]:
+    second_steps = 1
+    if downscale:
+        # calculate how many seconds in between should be left out
+        # so that only a maximum of 'args.max_display_values'
+        # number of values are shown
+        second_steps = max(
+            1,
+            media_duration_in_s // max_display_values
+        ) if max_display_values >= 1 else 1
+
+    seconds_with_bitrates = group_frames_to_seconds(
+        frames, 0, media_duration_in_s, second_steps)
+
+    if args.stream == "audio":
+        color = Color.AUDIO.value
+    elif args.stream == "video":
+        color = Color.FRAME.value
+    else:
+        color = "black"
+
+    matplot.bar(
+        seconds_with_bitrates.keys(),
+        seconds_with_bitrates.values(),
+        color=color,
+        width=second_steps)
+
+    # group the raw frames to seconds again
+    # but this time without leaving out any seconds
+    # to calculate the peak and mean
+    all_values = list(group_frames_to_seconds(
+        frames, 0, media_duration_in_s).values())
+    peak_bitrate = max(all_values)
+    mean_bitrate = int(statistics.mean(all_values))
+
+    return peak_bitrate, mean_bitrate
+
+
+def draw_horizontal_line_with_text(
+        pos_y: int, pos_h_percent: float, text: str):
+    # calculate line position (above line)
+    text_x = matplot.xlim()[1] * pos_h_percent
+    text_y = pos_y + ((matplot.ylim()[1] - matplot.ylim()[0]) * 0.015)
+
+    # draw as think black line with text
+    matplot.axhline(pos_y, linewidth=1.5, color="black")
+    matplot.text(text_x, text_y, text,
+                 horizontalalignment="center", fontweight="bold",
+                 color="black")
+
+
 if __name__ == "__main__":
     args = parse_arguments()
 
@@ -411,20 +517,20 @@ if __name__ == "__main__":
                      args.stream_spec, args.no_progress)
         sys.exit(0)
 
-    total_media_time_in_seconds: int
+    media_duration_in_s: int
     source_is_xml = args.input.endswith(".xml")
 
     # read total time from format
     if source_is_xml:
-        total_media_time_in_seconds = \
-            int(read_total_time_from_format_xml(args.input))
+        media_duration_in_s = \
+            int(read_media_duration_from_format_xml(args.input))
     else:
         process = open_ffprobe_get_format(args.input)
-        total_media_time_in_seconds = \
-            int(read_total_time_from_format_xml(process.stdout))
+        media_duration_in_s = \
+            int(read_media_duration_from_format_xml(process.stdout))
 
-    if total_media_time_in_seconds == 0:
-        sys.exit("Error: Failed to determine stream duration\n")
+    if media_duration_in_s == 0:
+        sys.exit("Error: Failed to determine stream duration")
 
     # open frame data reader for media or xml file
     if source_is_xml:
@@ -433,129 +539,49 @@ if __name__ == "__main__":
         proc_frame = open_ffprobe_get_frames(args.input, args.stream_spec)
         frames_source = eTree.iterparse(proc_frame.stdout)
 
-    report_func = None
-    if not args.no_progress:
-        report_func = report_frame_progress
-
     # read frame data
-    frames_raw = read_frame_data(frames_source, report_func)
+    frames_raw = read_frame_data(
+        frames_source,
+        report_frame_progress if not args.no_progress else None)
 
     if not args.no_progress:
         print(flush=True)
 
     # check for success
     if len(frames_raw) == 0:
-        sys.exit("Error: No frame data, failed to execute ffprobe\n")
+        sys.exit("Error: No frame data, failed to execute ffprobe")
 
     # if the output is csv raw, write the file and we're done
     if args.format == "csv_raw":
         save_raw_csv(frames_raw, args.output)
         sys.exit(0)
 
-    # prepare the chart and setup new figure
-    prepare_matplot(args.input, total_media_time_in_seconds,
+    prepare_matplot(args.input, media_duration_in_s,
                     args.min, args.max)
 
-    global_peak_bitrate = 0
-    global_mean_bitrate = 0
+    peak = 0
+    mean = 0
     bars: Dict[str, matplotlib.container.BarContainer] = {}
 
     if args.show_frame_types and args.stream == "video":
-        # calculate bitrate for each frame type
-        # and add a stacking bar for each
-
-        sums_of_values: List[int] = []
-        for frame_type in ["I", "B", "P", "?"]:
-            filtered_frames = [frame for frame in frames_raw
-                               if frame.type == frame_type]
-            if len(filtered_frames) == 0:
-                continue
-
-            # simple frame grouping to seconds
-            seconds_with_bitrates = group_frames_to_seconds(
-                filtered_frames, 0, total_media_time_in_seconds)
-
-            bar = matplot.bar(
-                seconds_with_bitrates.keys(),
-                seconds_with_bitrates.values(),
-                bottom=sums_of_values if len(sums_of_values) > 0 else 0,
-                color=Color[frame_type].value if frame_type in dir(Color)
-                else Color.FRAME.value,
-                width=1)
-            bars[frame_type] = bar
-
-            # add current frame bitrate values to all previous
-            # needed so that the stacking bars know their min value
-            # and so that the peak and mean can be calculated
-            if len(sums_of_values) == 0:
-                sums_of_values = list(seconds_with_bitrates.values())
-            else:
-                sums_of_values = [x + y for x, y in zip(
-                    sums_of_values, seconds_with_bitrates.values())]
-
-        global_peak_bitrate = max(sums_of_values)
-        global_mean_bitrate = int(statistics.mean(sums_of_values))
-
+        peak, mean, bars = add_frames_as_stacked_bars(frames_raw,
+                                                      media_duration_in_s)
     else:
-        second_steps = 1
-        if args.downscale:
-            # calculate how many seconds in between should be left out
-            # so that only a maximum of 'args.max_display_values'
-            # number of values are shown
-            second_steps = max(
-                1,
-                math.floor(total_media_time_in_seconds /
-                           args.max_display_values)
-            ) if args.max_display_values >= 1 else 1
+        peak, mean = add_frames_as_bar(frames_raw,
+                                       media_duration_in_s,
+                                       args.downscale,
+                                       args.max_display_values)
 
-        seconds_with_bitrates = group_frames_to_seconds(
-            frames_raw, 0, total_media_time_in_seconds, second_steps)
+    draw_horizontal_line_with_text(
+        pos_y=peak,
+        pos_h_percent=0.08,
+        text="peak ({:,})".format(peak))
+    draw_horizontal_line_with_text(
+        pos_y=mean,
+        pos_h_percent=0.92,
+        text="mean ({:,})".format(mean))
 
-        if args.stream == "audio":
-            color = Color.AUDIO.value
-        elif args.stream == "video":
-            color = Color.FRAME.value
-        else:
-            color = "black"
-
-        matplot.bar(
-            seconds_with_bitrates.keys(),
-            seconds_with_bitrates.values(),
-            color=color,
-            width=second_steps)
-
-        # group the raw frames to seconds again
-        # but this time without leaving out any seconds
-        # to calculate the peak and mean
-        seconds_with_bitrates = group_frames_to_seconds(
-            frames_raw, 0, total_media_time_in_seconds)
-        global_peak_bitrate = max(seconds_with_bitrates.values())
-        global_mean_bitrate = int(
-            statistics.mean(seconds_with_bitrates.values()))
-
-    # calculate peak line position (left 8%, above line)
-    peak_text_x = matplot.xlim()[1] * 0.08
-    peak_text_y = global_peak_bitrate + \
-        ((matplot.ylim()[1] - matplot.ylim()[0]) * 0.015)
-    peak_text = "peak ({:,})".format(int(global_peak_bitrate))
-
-    # draw peak as think black line w/ text
-    matplot.axhline(global_peak_bitrate, linewidth=1.5, color="black")
-    matplot.text(peak_text_x, peak_text_y, peak_text,
-                 horizontalalignment="center", fontweight="bold", color="black")
-
-    # calculate mean line position (right 92%, above line)
-    mean_text_x = matplot.xlim()[1] * 0.92
-    mean_text_y = global_mean_bitrate + \
-        ((matplot.ylim()[1] - matplot.ylim()[0]) * 0.015)
-    mean_text = "mean ({:,})".format(int(global_mean_bitrate))
-
-    # draw mean as think black line w/ text
-    matplot.axhline(global_mean_bitrate, linewidth=1.5, color="black")
-    matplot.text(mean_text_x, mean_text_y, mean_text,
-                 horizontalalignment="center", fontweight="bold", color="black")
-
-    if len(bars) >= 1:
+    if len(bars) > 0:
         matplot.legend(bars.values(), bars.keys())
 
     # render graph to file (if requested) or screen
