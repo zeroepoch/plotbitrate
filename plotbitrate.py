@@ -264,7 +264,7 @@ def try_get_frame_time_from_node(node: eTree.Element) -> Optional[float]:
     return frame_time
 
 
-def report_frame_progress(frame):
+def report_frame_progress(frame: Frame, media_duration_in_s: int) -> None:
     global __progress_last_percent
     percent = math.floor(
         (frame.time / media_duration_in_s) * 100.0)
@@ -456,7 +456,8 @@ def add_frames_as_bar(
         frames: List[Frame],
         media_duration_in_s: int,
         downscale: bool,
-        max_display_values: int
+        max_display_values: int,
+        stream_type: str
 ) -> Tuple[int, int]:
     second_steps = 1
     if downscale:
@@ -471,9 +472,9 @@ def add_frames_as_bar(
     seconds_with_bitrates = group_frames_to_seconds(
         frames, 0, media_duration_in_s, second_steps)
 
-    if args.stream == "audio":
+    if stream_type == "audio":
         color = Color.AUDIO.value
-    elif args.stream == "video":
+    elif stream_type == "video":
         color = Color.FRAME.value
     else:
         color = "black"
@@ -508,7 +509,7 @@ def draw_horizontal_line_with_text(
                  color="black")
 
 
-if __name__ == "__main__":
+def main():
     args = parse_arguments()
 
     # if the output is raw xml, just call the function and exit
@@ -542,7 +543,8 @@ if __name__ == "__main__":
     # read frame data
     frames_raw = read_frame_data(
         frames_source,
-        report_frame_progress if not args.no_progress else None)
+        lambda frame: report_frame_progress(frame, media_duration_in_s) 
+        if not args.no_progress else None)
 
     if not args.no_progress:
         print(flush=True)
@@ -570,7 +572,8 @@ if __name__ == "__main__":
         peak, mean = add_frames_as_bar(frames_raw,
                                        media_duration_in_s,
                                        args.downscale,
-                                       args.max_display_values)
+                                       args.max_display_values,
+                                       args.stream)
 
     draw_horizontal_line_with_text(
         pos_y=peak,
@@ -589,3 +592,7 @@ if __name__ == "__main__":
         matplot.savefig(args.output, format=args.format, dpi=300)
     else:
         matplot.show()
+
+
+if __name__ == "__main__":
+    main()
