@@ -60,8 +60,6 @@ except ImportError:
 if not shutil.which("ffprobe"):
     sys.exit("Error: Missing ffprobe from package 'ffmpeg'")
 
-__progress_last_percent: int = 0
-
 # data type for raw frame data
 Frame = collections.namedtuple("Frame", ["time", "size_kbit", "type"])
 
@@ -262,15 +260,6 @@ def try_get_frame_time_from_node(node: eTree.Element) -> Optional[float]:
                 continue
 
     return frame_time
-
-
-def report_frame_progress(frame: Frame, media_duration_in_s: int) -> None:
-    global __progress_last_percent
-    percent = math.floor(
-        (frame.time / media_duration_in_s) * 100.0)
-    if percent > __progress_last_percent:
-        print_progress(percent)
-        __progress_last_percent = percent
 
 
 def print_progress(percent: float) -> None:
@@ -540,11 +529,20 @@ def main():
         proc_frame = open_ffprobe_get_frames(args.input, args.stream_spec)
         frames_source = eTree.iterparse(proc_frame.stdout)
 
+    # only report progress if it changed
+    progress_last_percent = 0
+    def report_frame_progress(frame: Frame):
+        nonlocal progress_last_percent
+        percent = math.floor(
+            (frame.time / media_duration_in_s) * 100.0)
+        if percent > progress_last_percent:
+            print_progress(percent)
+            progress_last_percent = percent
+    
     # read frame data
     frames_raw = read_frame_data(
         frames_source,
-        lambda frame: report_frame_progress(frame, media_duration_in_s) 
-        if not args.no_progress else None)
+        report_frame_progress if not args.no_progress else None)
 
     if not args.no_progress:
         print(flush=True)
