@@ -49,41 +49,41 @@ Usage Examples
 Show video stream bitrate in a window with progress.
 
 ```
-./plotbitrate.py input.mkv
+plotbitrate input.mkv
 ```
 
 Show downscaled video stream bitrate in a window.
 
 ```
-./plotbitrate.py -d input.mkv
+plotbitrate -d input.mkv
 ```
 
 Show video stream bitrate for each frame type in a window.
 
 ```
-./plotbitrate.py -t input.mkv
+plotbitrate -t input.mkv
 ```
 
 Save video stream bitrate to an SVG file.
 
 ```
-./plotbitrate.py -o output.svg input.mkv
+plotbitrate -o output.svg input.mkv
 ```
 
 Show audio stream bitrate in a window.
 
 ```
-./plotbitrate.py -s audio input.mkv
+plotbitrate -s audio input.mkv
 ```
 
 Save raw ffproble frame data as xml file.
 
 ```
-./plotbitrate.py -f xml_raw -o frames.xml input.mkv
+plotbitrate -f xml_raw -o frames.xml input.mkv
 ```
 
 Show bitrate graph from raw xml.
 
 ```
-./plotbitrate.py frames.xml
+plotbitrate frames.xml
 ```
