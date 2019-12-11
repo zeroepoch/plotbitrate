@@ -29,6 +29,8 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
+__version__ = "1.0"
+
 import sys
 import shutil
 import argparse
