@@ -20,9 +20,13 @@ Requirements:
 * FFMpeg >= 1.2 with the ffprobe command
 * Matplotlib python 3 library (install: `python3 -m pip install -U --user matplotlib`)
 
+Installation
+------------
+`pip install rezun-plotbitrate`
+
 
 Usefull Options
-==============
+------------
 
 The raw frame data can be stored in an xml file with the option `-f xml_raw`,
 which the graph can be plotted from.
@@ -40,7 +44,7 @@ The default value is 700, meaning that at most 700 individual seconds/bars are d
 
 
 Usage Examples
-==============
+------------
 
 Show video stream bitrate in a window with progress.
 
