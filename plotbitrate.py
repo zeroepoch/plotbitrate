@@ -29,21 +29,22 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 import argparse
 import csv
 import datetime
 import math
 import multiprocessing
-import operator
 import shutil
 import statistics
 import subprocess
 import sys
-from dataclasses import dataclass
+import dataclasses
+from collections import OrderedDict
 from enum import Enum
-from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple
+from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple, \
+    Generator
 
 # prefer C-based ElementTree
 try:
@@ -63,11 +64,11 @@ if not shutil.which("ffprobe"):
     sys.exit("Error: Missing ffprobe from package 'ffmpeg'")
 
 
-@dataclass
+@dataclasses.dataclass
 class Frame:
-    __slots__ = ["time", "size_kbit", "pict_type"]
+    __slots__ = ["time", "size", "pict_type"]
     time: float
-    size_kbit: int
+    size: int
     pict_type: str
 
 
@@ -80,6 +81,8 @@ class Color(Enum):
 
 
 def parse_arguments() -> argparse.Namespace:
+    """ Parses all arguments and returns them as an object. """
+
     # get list of supported matplotlib formats
     format_list = list(
         matplotlib.figure.Figure().canvas.get_supported_filetypes().keys()
@@ -143,7 +146,8 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def open_ffprobe_get_format(file_path: str) -> subprocess.Popen:
-    """ Opens an ffprobe process that reads the format data
+    """
+    Opens an ffprobe process that reads the format data
     for file_path and returns the process.
     """
     return subprocess.Popen(
@@ -157,9 +161,12 @@ def open_ffprobe_get_format(file_path: str) -> subprocess.Popen:
         stdout=subprocess.PIPE)
 
 
-def open_ffprobe_get_frames(file_path: str,
-                            stream_selector: str) -> subprocess.Popen:
-    """ Opens an ffprobe process that reads all frame data for
+def open_ffprobe_get_frames(
+        file_path: str,
+        stream_selector: str
+) -> subprocess.Popen:
+    """
+    Opens an ffprobe process that reads all frame data for
     file_path and returns the process.
     """
     return subprocess.Popen(
@@ -177,15 +184,20 @@ def open_ffprobe_get_frames(file_path: str,
         stdout=subprocess.PIPE)
 
 
-def save_raw_xml(file_path: str, target_path: str, stream_selector: str,
-                 no_progress: bool) -> None:
-    """ Reads all raw frame data from file_path
-    and saves it to target_path. """
+def save_raw_xml(
+        file_path: str,
+        target_path: str,
+        stream_selector: str,
+        no_progress: bool
+) -> None:
+    """
+    Reads all raw frame data from file_path
+    and saves it to target_path.
+    """
     if not no_progress:
         last_percent = 0
         with open_ffprobe_get_format(file_path) as proc_format:
-            media_time_in_seconds = parse_media_duration(
-                proc_format.stdout)
+            duration = parse_media_duration(proc_format.stdout)
 
     with open(target_path, "wb") as f:
         # open and clear file
@@ -213,14 +225,13 @@ def save_raw_xml(file_path: str, target_path: str, stream_selector: str,
                 # look for lines starting with frame tag
                 # try parsing the time from them and print percent
                 if not no_progress \
-                        and media_time_in_seconds > 0 \
+                        and duration > 0 \
                         and line.lstrip().startswith(b"<frame "):
-                    frame_time = try_get_frame_time_from_node(
-                        eTree.fromstring(line))
+                    frame_time = \
+                        try_get_frame_time_from_node(eTree.fromstring(line))
 
                     if frame_time is not None:
-                        percent = math.floor((frame_time /
-                                              media_time_in_seconds) * 100.0)
+                        percent = math.floor((frame_time / duration) * 100.0)
                     else:
                         percent = 0
 
@@ -231,22 +242,30 @@ def save_raw_xml(file_path: str, target_path: str, stream_selector: str,
                 print(flush=True)
 
 
-def save_raw_csv(raw_frames: List[Frame], target_path: str) -> None:
+def save_raw_csv(raw_frames: Iterable[Frame], target_path: str) -> None:
     """ Saves raw_frames as a csv file. """
-    if len(raw_frames) == 0:
-        return
-    with open(target_path, "w") as f:
-        wr = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-        wr.writerow(vars(raw_frames[0]).keys())
-        wr.writerows((vars(frame).values() for frame in raw_frames))
+    fields = [f.name for f in dataclasses.fields(Frame)]
+    with open(target_path, "w") as file:
+        wr = csv.writer(file, quoting=csv.QUOTE_NONE)
+        wr.writerow(fields)
+        for frame in raw_frames:
+            wr.writerow(getattr(frame, field) for field in fields)
+
+
+def media_duration(source: str) -> float:
+    if source.endswith(".xml"):
+        return parse_media_duration(source)
+    else:
+        with open_ffprobe_get_format(source) as process:
+            return parse_media_duration(process.stdout)
 
 
 def parse_media_duration(source: Union[str, IO]) -> float:
     """ Parses the source and returns the extracted total duration. """
     format_data = eTree.parse(source)
     format_elem = format_data.find(".//format")
-    duration_str = format_elem.get("duration") \
-        if format_elem is not None else None
+    duration_str = \
+        format_elem.get("duration") if format_elem is not None else None
     return float(duration_str) if duration_str is not None else 0
 
 
@@ -261,8 +280,26 @@ def try_get_frame_time_from_node(node: eTree.Element) -> Optional[float]:
     return None
 
 
+def create_progress(duration: int):
+    last_percent = 0
+
+    def report_progress(frame: Optional[Frame]):
+        nonlocal last_percent
+        if frame:
+            percent = math.floor((frame.time / duration) * 100.0)
+            if percent > last_percent:
+                print_progress(percent)
+                last_percent = percent
+        else:
+            last_percent = 100
+            print_progress(last_percent)
+            print()
+
+    return report_progress
+
+
 def print_progress(percent: float) -> None:
-    sys.stdout.write("\rProgress: {:2}%".format(percent))
+    print("Progress: {:2}%".format(percent), end="\r")
 
 
 def frame_elements(source_iterable: Iterable) -> Iterable[eTree.Element]:
@@ -271,82 +308,141 @@ def frame_elements(source_iterable: Iterable) -> Iterable[eTree.Element]:
             yield node
 
 
-def sum_size(frames: Iterable[Frame]) -> int:
-    return sum(frame.size_kbit for frame in frames)
+def read_frame_data_gen(
+        source: str,
+        stream_spec: str,
+        frame_progress_func: Optional[Callable[[Optional[Frame]], None]]
+) -> Generator[Frame, None, None]:
+    source_iter: Union[str, IO]
+    if source.endswith(".xml"):
+        source_iter = source
+    else:
+        proc = open_ffprobe_get_frames(source, stream_spec)
+        source_iter = proc.stdout
+
+    for f in read_frame_data_gen_internal(source_iter):
+        if frame_progress_func:
+            frame_progress_func(f)
+        yield f
+
+    if frame_progress_func:
+        frame_progress_func(None)
 
 
-def read_frame_data(source_iterable: Iterable,
-                    frame_read_callback: Optional[Callable[[Frame], None]]
-                    ) -> List[Frame]:
-    """ Iterates over source_iterable and creates a list of Frame objects.
-    Will call frame_read_callback on the end of each loop so that progress
-    can be calculated.
+def read_frame_data_gen_internal(
+        source: Union[str, IO]
+) -> Generator[Frame, None, None]:
     """
-    data = []
-    for node in frame_elements(source_iterable):
+    Creates an iterator from source_iterable and yields Frame objects.
+    """
+    for node in frame_elements(eTree.iterparse(source)):
+        # get data
         time = try_get_frame_time_from_node(node)
         size = node.get("pkt_size")
         pict_type = node.get("pict_type")
-        frame = Frame(
+        # clear node to free parsed data
+        node.clear()
+
+        # construct and append frame
+        yield Frame(
             time=time if time else 0,
-            size_kbit=int((float(size) if size else 0) * 8 / 1000),
-            pict_type=pict_type if pict_type else "?")
-        data.append(frame)
-        if frame_read_callback is not None:
-            frame_read_callback(frame)
-    return data
+            size=int(size) if size else 0,
+            pict_type=pict_type if pict_type else "?"
+        )
 
 
-def group_frames_to_seconds(frames: List[Frame], seconds_start: int,
-                            seconds_end: int, seconds_step: int = 1
-                            ) -> Dict[int, int]:
-    """ Iterates from seconds_start to seconds_end and groups
-    all frame data by its whole second.
-    The second is floored,
-    so all data of the first second will be in second 0.
-    If seconds_step is greater than 1,
-    the result will not contain every second in between.
-    In this case, for each result second, the highest bitrate
-    of this second and all up to the next will be chosen.
+def frames_to_kbits(
+        frames: Iterable[Frame],
+        seconds_start: int,
+        seconds_end: int
+) -> Generator[Tuple[int, int], None, None]:
+    """
+    Creates a generator yielding every second between seconds_start
+    and seconds_end (including both) and its summed size in kbit.
+
+    The frames iterable must be sorted by frame time.
+    """
+    frames_iter = iter(frames)
+    last_frame_second = 0
+    last_frame_size = 0
+
+    # loop over every second
+    for second in range(seconds_start, seconds_end + 1):
+
+        # restore size of a saved frame from last iteration
+        # if it's for the current second
+        if last_frame_second == second:
+            size = last_frame_size
+        else:
+            size = 0
+
+        # advance iterator only if the saved frame data
+        # is not for a future second
+        if last_frame_second <= second:
+            # advances the iterator until it's at a frame
+            # belonging to a future second
+            for frame in frames_iter:
+                frame_second = math.floor(frame.time)
+                if frame_second < second:
+                    continue
+                elif frame_second == second:
+                    # frame is current second, so sum up
+                    size += frame.size
+                else:
+                    # current frame is not in current second
+                    # store its size and second and break iteration
+                    last_frame_second = frame_second
+                    last_frame_size = frame.size
+                    break
+
+        yield second, int(size * 8 / 1024)
+
+
+def downscale_bitrate(
+        bitrates: Dict[int, int],
+        factor: int
+) -> Generator[Tuple[int, int], None, None]:
+    """
+    Groups bitrates together and takes the highest bitrate as the value.
+
+    Args:
+        bitrates: dict containing seconds with bitrates
+        factor: which seconds to keep (1 is every, 2 is every other and so on)
 
     Example:
-    seconds_start=0, seconds_end=10, seconds_step=3
 
-    bitrate of second 0 is 3400
-    bitrate of second 1 is 5290
-    bitrate of second 2 is 4999
-    ...
+        given the parameters:
 
-    The result will contain second 0 with bitrate 5290 (the highest),
-    but not second 1 or 2.
-    The next result second will be 3, containing the highest bitrate
-    of itself and the next 2 seconds, and so on.
+        bitrates = {
+            0: 3400,
+            1: 5290
+            2: 4999
+            3: 7500
+            4: 0
+            5: 7800
+            6: 3000
+        }
+        factor = 3
 
+        this function will return an iterator giving:
+        (0, 5290)
+        (3, 7800)
+        (6, 3000)
     """
-    # create an index for lookup performance
-    seconds_with_frames: Dict[int, List[Frame]] = {}
-    for frame in frames:
-        seconds_with_frames.setdefault(math.floor(frame.time), []) \
-            .append(frame)
-
-    # iterate over seconds with the given step
-    mapped_data: Dict[int, int] = {}
-    for second in range(seconds_start, seconds_end, seconds_step):
-        # if steps is greater than one,
-        # this will run over each second in between
-        second_sub_step = second
-        while second_sub_step < second + seconds_step:
-            # take the highest bitrate
-            mapped_data[second] = max(
-                mapped_data.get(second, 0),
-                sum_size(seconds_with_frames.get(second_sub_step, ())))
-            second_sub_step += 1
-    return mapped_data
+    # iterate over all seconds to yield
+    for second in range(min(bitrates.keys()), max(bitrates.keys()) + 1, factor):
+        # iterate over all seconds in between
+        # and find the highest bitrate
+        max_b = max(bitrates.get(s, 0) for s in range(second, second + factor))
+        yield second, max_b
 
 
-def prepare_matplot(window_title: str, total_media_time_in_seconds: int,
-                    min_y: Optional[int], max_y: Optional[int]
-                    ) -> None:
+def prepare_matplot(
+        window_title: str,
+        duration: int,
+        min_y: Optional[int],
+        max_y: Optional[int]
+) -> None:
     """ Prepares the chart and sets up a new figure """
 
     matplot.figure(figsize=[10, 4]).canvas.set_window_title(window_title)
@@ -357,10 +453,7 @@ def prepare_matplot(window_title: str, total_media_time_in_seconds: int,
     matplot.tight_layout()
 
     # set 10 x axes ticks
-    matplot.xticks(range(
-        0,
-        total_media_time_in_seconds + 1,
-        max(total_media_time_in_seconds // 10, 1)))
+    matplot.xticks(range(0, duration + 1, max(duration // 10, 1)))
 
     # format axes values
     matplot.gcf().axes[0].xaxis.set_major_formatter(
@@ -377,29 +470,28 @@ def prepare_matplot(window_title: str, total_media_time_in_seconds: int,
         matplot.ylim(ymax=max_y)
 
 
-def add_frames_as_stacked_bars(
-        frames: List[Frame], media_duration_in_s: int
+def add_stacked_bars(
+        frames: Iterable[Frame],
+        duration: int
 ) -> Tuple[int, int, Dict[str, matplotlib.container.BarContainer]]:
     """ Calculates the bitrate for each frame type
     and adds a stacking bar for each
     """
     bars = {}
     sums_of_values: List[int] = []
+    frames_list = frames if isinstance(frames, list) else list(frames)
 
     # calculate bitrate for each frame type
     # and add a stacking bar for each
     for frame_type in ["I", "B", "P", "?"]:
-        filtered_frames = list(filter(lambda x: x.pict_type == frame_type,
-                                      frames))
+        filtered_frames = [f for f in frames_list if f.pict_type == frame_type]
         if len(filtered_frames) == 0:
             continue
 
-        # simple frame grouping to seconds
-        seconds_with_bitrates = group_frames_to_seconds(
-            filtered_frames, 0, media_duration_in_s)
-        bitrate_values = list(seconds_with_bitrates.values())
+        bitrates = dict(frames_to_kbits(filtered_frames, 0, duration))
+        bitrate_values = list(bitrates.values())
         bars[frame_type] = matplot.bar(
-            seconds_with_bitrates.keys(),
+            bitrates.keys(),
             bitrate_values,
             bottom=sums_of_values if len(sums_of_values) > 0 else 0,
             color=Color[frame_type].value if frame_type in dir(Color)
@@ -412,58 +504,54 @@ def add_frames_as_stacked_bars(
         if len(sums_of_values) == 0:
             sums_of_values = bitrate_values
         else:
-            sums_of_values = list(
-                map(operator.add, sums_of_values, bitrate_values))
+            sums_of_values = [
+                sum(pair) for pair in zip(sums_of_values, bitrate_values)
+            ]
 
     return max(sums_of_values), int(statistics.mean(sums_of_values)), bars
 
 
-def add_frames_as_bar(
-        frames: List[Frame], media_duration_in_s: int,
-        downscale: bool, max_display_values: int, stream_type: str
+def add_bar(
+        frames: Iterable[Frame],
+        duration: int,
+        downscale: bool,
+        max_display_values: int,
+        stream_type: str
 ) -> Tuple[int, int]:
-    second_steps = 1
-    if downscale:
-        # calculate how many seconds in between should be left out
-        # so that only a maximum of 'args.max_display_values'
-        # number of values are shown
-        second_steps = max(1, media_duration_in_s // max_display_values) \
-            if max_display_values >= 1 else 1
+    bitrates = dict(frames_to_kbits(frames, 0, duration))
+    bitrate_max = max(bitrates.values())
+    bitrate_mean = int(statistics.mean(bitrates.values()))
 
-    seconds_with_bitrates = group_frames_to_seconds(
-        frames, 0, media_duration_in_s, second_steps)
+    factor = None
+    if downscale and 0 < max_display_values < duration:
+        factor = duration // max_display_values
+        bitrates = dict(downscale_bitrate(bitrates, factor))
 
-    if stream_type == "audio":
-        color = Color.AUDIO.value
-    elif stream_type == "video":
-        color = Color.FRAME.value
-    else:
-        color = "black"
-
+    color = Color.AUDIO.value if stream_type == "audio" else Color.FRAME.value
     matplot.bar(
-        seconds_with_bitrates.keys(),
-        seconds_with_bitrates.values(),
+        bitrates.keys(),
+        bitrates.values(),
         color=color,
-        width=second_steps)
-
-    # group the raw frames to seconds again
-    # but this time without leaving out any seconds
-    # to calculate the peak and mean
-    all_values = list(
-        group_frames_to_seconds(frames, 0, media_duration_in_s).values())
-    return max(all_values), int(statistics.mean(all_values))
+        width=factor if factor else 1
+    )
+    return bitrate_max, bitrate_mean
 
 
-def draw_horizontal_line_with_text(pos_y: int, pos_h_percent: float, text: str):
+def draw_horizontal_line_with_text(
+        pos_y: int,
+        pos_h_percent: float,
+        text: str
+) -> None:
     # calculate line position (above line)
     text_x = matplot.xlim()[1] * pos_h_percent
     text_y = pos_y + ((matplot.ylim()[1] - matplot.ylim()[0]) * 0.015)
 
     # draw as think black line with text
     matplot.axhline(pos_y, linewidth=1.5, color="black")
-    matplot.text(text_x, text_y, text,
-                 horizontalalignment="center", fontweight="bold",
-                 color="black")
+    matplot.text(
+        text_x, text_y, text,
+        horizontalalignment="center", fontweight="bold", color="black"
+    )
 
 
 def main():
@@ -471,78 +559,46 @@ def main():
 
     # if the output is raw xml, just call the function and exit
     if args.format == "xml_raw":
-        save_raw_xml(args.input, args.output, args.stream_spec,
-                     args.no_progress)
+        save_raw_xml(
+            args.input, args.output, args.stream_spec, args.no_progress
+        )
         sys.exit(0)
 
-    media_duration_in_s = 0
-    source_is_xml = args.input.endswith(".xml")
-
-    # read total time from format
-    if source_is_xml:
-        media_duration_in_s = int(parse_media_duration(args.input))
-    else:
-        process = open_ffprobe_get_format(args.input)
-        media_duration_in_s = int(parse_media_duration(process.stdout))
-
-    if media_duration_in_s == 0:
+    duration = math.floor(media_duration(args.input))
+    if duration == 0:
         sys.exit("Error: Failed to determine stream duration")
 
-    # open frame data reader for media or xml file
-    if source_is_xml:
-        frames_source = eTree.iterparse(args.input)
-    else:
-        proc_frame = open_ffprobe_get_frames(args.input, args.stream_spec)
-        frames_source = eTree.iterparse(proc_frame.stdout)
-
-    # only report progress if it changed
-    progress_last_percent = 0
-
-    def report_frame_progress(frame: Frame):
-        nonlocal progress_last_percent
-        percent = math.floor((frame.time / media_duration_in_s) * 100.0)
-        if percent > progress_last_percent:
-            print_progress(percent)
-            progress_last_percent = percent
-
-    # read frame data
-    frames_raw = read_frame_data(
-        frames_source,
-        report_frame_progress if not args.no_progress else None)
-
-    if not args.no_progress:
-        print(flush=True)
-
-    # check for success
-    if not frames_raw:
-        sys.exit("Error: No frame data, failed to execute ffprobe")
+    progress_func = create_progress(duration) if not args.no_progress else None
+    frames = read_frame_data_gen(
+        args.input, args.stream_spec, progress_func
+    )
 
     # if the output is csv raw, write the file and we're done
     if args.format == "csv_raw":
-        save_raw_csv(frames_raw, args.output)
+        save_raw_csv(frames, args.output)
         sys.exit(0)
 
-    prepare_matplot(args.input, media_duration_in_s, args.min, args.max)
+    prepare_matplot(args.input, duration, args.min, args.max)
 
     bars: Dict[str, matplotlib.container.BarContainer] = {}
     if args.show_frame_types and args.stream == "video":
-        peak, mean, bars = add_frames_as_stacked_bars(frames_raw,
-                                                      media_duration_in_s)
+        peak, mean, bars = add_stacked_bars(frames, duration)
     else:
-        peak, mean = add_frames_as_bar(frames_raw,
-                                       media_duration_in_s,
-                                       args.downscale,
-                                       args.max_display_values,
-                                       args.stream)
+        peak, mean = add_bar(
+            frames, duration, args.downscale, args.max_display_values,
+            args.stream
+        )
 
     draw_horizontal_line_with_text(
         pos_y=peak,
         pos_h_percent=0.08,
-        text="peak ({:,})".format(peak))
+        text="peak ({:,})".format(peak)
+    )
     draw_horizontal_line_with_text(
         pos_y=mean,
         pos_h_percent=0.92,
-        text="mean ({:,})".format(mean))
+        text="mean ({:,})".format(mean)
+    )
 
     if bars:
         matplot.legend(bars.values(), bars.keys())
