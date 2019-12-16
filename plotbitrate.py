@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-__version__ = "1.0"
+__version__ = "1.0.1"
 
 import argparse
 import csv
@@ -41,6 +41,7 @@ import shutil
 import statistics
 import subprocess
 import sys
+from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple
 
@@ -62,11 +63,12 @@ if not shutil.which("ffprobe"):
     sys.exit("Error: Missing ffprobe from package 'ffmpeg'")
 
 
+@dataclass
 class Frame:
-    def __init__(self, time: float, size_kbit: int, pict_type: str):
-        self.time = time
-        self.size_kbit = size_kbit
-        self.pict_type = pict_type
+    __slots__ = ["time", "size_kbit", "pict_type"]
+    time: float
+    size_kbit: int
+    pict_type: str
 
 
 class Color(Enum):

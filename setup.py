@@ -28,6 +28,7 @@ setup(
         ]
     },
     install_requires=[
-        'matplotlib'
+        'matplotlib',
+        'dataclasses'
     ]
 )
