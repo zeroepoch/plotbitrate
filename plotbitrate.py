@@ -76,8 +76,8 @@ class Color(Enum):
     I = "red"
     P = "green"
     B = "blue"
-    AUDIO = "indianred"
-    FRAME = "indianred"
+    AUDIO = "C2"
+    FRAME = "C0"
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -470,10 +470,10 @@ def prepare_matplot(
         matplot.ylim(ymax=max_y)
 
 
-def add_stacked_bars(
+def add_stacked_areas(
         frames: Iterable[Frame],
         duration: int
-) -> Tuple[int, int, Dict[str, matplotlib.container.BarContainer]]:
+) -> Tuple[int, int, Dict[str, matplotlib.collections.PolyCollection]]:
     """ Calculates the bitrate for each frame type
     and adds a stacking bar for each
     """
@@ -489,29 +489,28 @@ def add_stacked_bars(
             continue
 
         bitrates = dict(frames_to_kbits(filtered_frames, 0, duration))
-        bitrate_values = list(bitrates.values())
-        bars[frame_type] = matplot.bar(
-            bitrates.keys(),
-            bitrate_values,
-            bottom=sums_of_values if len(sums_of_values) > 0 else 0,
-            color=Color[frame_type].value if frame_type in dir(Color)
-            else Color.FRAME.value,
-            width=1)
+        seconds = list(bitrates.keys())
+        values = list(bitrates.values())
 
-        # add current frame bitrate values to all previous
-        # needed so that the stacking bars know their min value
-        # and so that the peak and mean can be calculated
         if len(sums_of_values) == 0:
-            sums_of_values = bitrate_values
+            values_min = [0]
+            values_max = values
         else:
-            sums_of_values = [
-                sum(pair) for pair in zip(sums_of_values, bitrate_values)
+            values_min = sums_of_values
+            values_max = [
+                sum(pair) for pair in zip(sums_of_values, values)
             ]
+        sums_of_values = values_max
+        color = Color[frame_type].value if frame_type in dir(Color) \
+            else Color.FRAME.value
+        bars[frame_type] = matplot.fill_between(
+            seconds, values_min, values_max, linewidth=0.5, color=color
+        )
 
     return max(sums_of_values), int(statistics.mean(sums_of_values)), bars
 
 
-def add_bar(
+def add_area(
         frames: Iterable[Frame],
         duration: int,
         downscale: bool,
@@ -522,18 +521,15 @@ def add_bar(
     bitrate_max = max(bitrates.values())
     bitrate_mean = int(statistics.mean(bitrates.values()))
 
-    factor = None
     if downscale and 0 < max_display_values < duration:
         factor = duration // max_display_values
         bitrates = dict(downscale_bitrate(bitrates, factor))
 
+    seconds = list(bitrates.keys())
+    values = list(bitrates.values())
     color = Color.AUDIO.value if stream_type == "audio" else Color.FRAME.value
-    matplot.bar(
-        bitrates.keys(),
-        bitrates.values(),
-        color=color,
-        width=factor if factor else 1
-    )
+    matplot.plot(seconds, values, linewidth=0.5, color=color)
+    matplot.fill_between(seconds, 0, values, linewidth=0.5, color=color)
     return bitrate_max, bitrate_mean
 
 
@@ -580,11 +576,11 @@ def main():
 
     prepare_matplot(args.input, duration, args.min, args.max)
 
-    bars: Dict[str, matplotlib.container.BarContainer] = {}
+    legend = None
     if args.show_frame_types and args.stream == "video":
-        peak, mean, bars = add_stacked_bars(frames, duration)
+        peak, mean, legend = add_stacked_areas(frames, duration)
     else:
-        peak, mean = add_bar(
+        peak, mean = add_area(
             frames, duration, args.downscale, args.max_display_values,
             args.stream
         )
@@ -600,8 +596,8 @@ def main():
         text="mean ({:,})".format(mean)
     )
 
-    if bars:
-        matplot.legend(bars.values(), bars.keys())
+    if legend:
+        matplot.legend(legend.values(), legend.keys(), loc="upper right")
 
     # render graph to file (if requested) or screen
     if args.output:
