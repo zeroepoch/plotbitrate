@@ -1,0 +1,3 @@
+matplotlib
+pyqt5
+dataclasses;python_version=="3.6"
