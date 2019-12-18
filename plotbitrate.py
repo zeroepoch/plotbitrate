@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 import argparse
 import csv
@@ -445,12 +445,12 @@ def prepare_matplot(
 ) -> None:
     """ Prepares the chart and sets up a new figure """
 
+    matplotlib.use("Qt5Agg")
     matplot.figure(figsize=[10, 4]).canvas.set_window_title(window_title)
     matplot.title("Stream Bitrate over Time")
     matplot.xlabel("Time")
     matplot.ylabel("Bitrate (kbit/s)")
     matplot.grid(True, axis="y")
-    matplot.tight_layout()
 
     # set 10 x axes ticks
     matplot.xticks(range(0, duration + 1, max(duration // 10, 1)))
@@ -607,6 +607,7 @@ def main():
     if args.output:
         matplot.savefig(args.output, format=args.format, dpi=300)
     else:
+        matplot.tight_layout()
         matplot.show()
 
 

@@ -29,6 +29,7 @@ setup(
     },
     install_requires=[
         'matplotlib',
-        'dataclasses'
+        'dataclasses;python_version=="3.6"',
+        'pyqt5'
     ]
 )
