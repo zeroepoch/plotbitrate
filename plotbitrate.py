@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 import argparse
 import csv
@@ -395,7 +395,7 @@ def frames_to_kbits(
                     last_frame_size = frame.size
                     break
 
-        yield second, int(size * 8 / 1024)
+        yield second, int(size * 8 / 1000)
 
 
 def downscale_bitrate(
