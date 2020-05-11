@@ -1,3 +1,4 @@
-matplotlib==3.1.2
+matplotlib>=3.2.1;python_version>="3.6"
+matplotlib>=3.0.3;python_version=="3.5"
 dataclasses==0.7;python_version=="3.6"
-PyQt5==5.13.2
+PyQt5>=5.14.2

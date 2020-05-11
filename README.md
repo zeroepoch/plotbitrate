@@ -16,8 +16,9 @@ Possible outputs are:
 
 Requirements:
 
-* Python >= 3.6
+* Python >= 3.5
 * FFMpeg >= 1.2 with the ffprobe command
+* dataclasses (only on exactly python 3.6.*)
 * Matplotlib python 3 library (install: `python3 -m pip install -U --user matplotlib`)
 
 Installation
