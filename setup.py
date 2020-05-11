@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from plotbitrate import __version__
 
 with open("README.md", "r") as fh:
@@ -7,6 +7,7 @@ with open("README.md", "r") as fh:
 setup(
     name='rezun-plotbitrate',
     version=__version__,
+    packages=find_packages(),
     description='A simple bitrate plotter for media files',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -18,10 +19,10 @@ setup(
     classifiers=[
         'Topic :: Multimedia :: Sound/Audio',
         'Natural Language :: English',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.5',
     ],
     keywords='ffprobe bitrate plot',
-    python_requires='>=3.6',
+    python_requires='>=3.5',
     entry_points={
         'console_scripts': [
             'plotbitrate = plotbitrate:main'

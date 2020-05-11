@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-__version__ = "1.0.5"
+__version__ = "1.1.0.a1"
 
 import argparse
 import csv
@@ -40,12 +40,12 @@ import shutil
 import statistics
 import subprocess
 import sys
-import dataclasses
+import inspect
 from collections import OrderedDict
 from enum import Enum
 from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple, \
     Generator
-
+    
 # prefer C-based ElementTree
 try:
     import xml.etree.cElementTree as eTree
@@ -54,8 +54,9 @@ except ImportError:
 
 # check for matplot lib
 try:
-    import matplotlib.pyplot as matplot  # type: ignore
-    import matplotlib  # type: ignore
+    import matplotlib # type: ignore
+    matplotlib.use("Qt5Agg")
+    import matplotlib.pyplot as matplot # type: ignore
 except ImportError:
     sys.exit("Error: Missing package 'python3-matplotlib'")
 
@@ -63,14 +64,21 @@ except ImportError:
 if not shutil.which("ffprobe"):
     sys.exit("Error: Missing ffprobe from package 'ffmpeg'")
 
-
-@dataclasses.dataclass
-class Frame:
-    __slots__ = ["time", "size", "pict_type"]
-    time: float
-    size: int
-    pict_type: str
-
+if sys.version_info >= (3, 6):
+    # if python 3.6 or greater: use dataclass version of Frame
+    import dataclasses
+    from frame_dataclass import Frame
+else:
+    # use normal class version of Frame
+    class Frame:
+        def __init__(self, time, size, pict_type):
+            self.time = time
+            self.size = size
+            self.pict_type = pict_type
+        
+        @staticmethod
+        def get_fields():
+            return ['time', 'size', 'pict_type']
 
 class Color(Enum):
     I = "red"
@@ -82,11 +90,18 @@ class Color(Enum):
 
 def parse_arguments() -> argparse.Namespace:
     """ Parses all arguments and returns them as an object. """
+    
+    if sys.version_info >= (3, 6):
+        supported_filetypes = matplotlib.figure.Figure().canvas\
+            .get_supported_filetypes().keys()
+    else:
+        fig = matplot.figure()
+        supported_filetypes = fig.canvas.get_supported_filetypes().keys()
+        matplot.close(fig)
 
     # get list of supported matplotlib formats
-    format_list = list(
-        matplotlib.figure.Figure().canvas.get_supported_filetypes().keys()
-    )
+    format_list = list(supported_filetypes)
+    
     format_list.append("xml_raw")
     format_list.append("csv_raw")
 
@@ -197,6 +212,7 @@ def save_raw_xml(
     if not no_progress:
         last_percent = 0
         with open_ffprobe_get_format(file_path) as proc_format:
+            assert proc_format.stdout is not None
             duration = parse_media_duration(proc_format.stdout)
 
     with open(target_path, "wb") as f:
@@ -217,6 +233,7 @@ def save_raw_xml(
                  file_path
                  ],
                 stdout=subprocess.PIPE) as p:
+            assert p.stdout is not None
             # start process and iterate over output lines
             for line in p.stdout:
                 f.write(line)
@@ -244,7 +261,11 @@ def save_raw_xml(
 
 def save_raw_csv(raw_frames: Iterable[Frame], target_path: str) -> None:
     """ Saves raw_frames as a csv file. """
-    fields = [f.name for f in dataclasses.fields(Frame)]
+    if sys.version_info >= (3, 6):
+        fields = [f.name for f in dataclasses.fields(Frame)]
+    else:
+        fields = Frame.get_fields()
+
     with open(target_path, "w") as file:
         wr = csv.writer(file, quoting=csv.QUOTE_NONE)
         wr.writerow(fields)
@@ -257,6 +278,7 @@ def media_duration(source: str) -> float:
         return parse_media_duration(source)
     else:
         with open_ffprobe_get_format(source) as process:
+            assert process.stdout is not None
             return parse_media_duration(process.stdout)
 
 
@@ -313,11 +335,12 @@ def read_frame_data_gen(
         stream_spec: str,
         frame_progress_func: Optional[Callable[[Optional[Frame]], None]]
 ) -> Generator[Frame, None, None]:
-    source_iter: Union[str, IO]
+    source_iter = "" # type: Union[str, IO]
     if source.endswith(".xml"):
         source_iter = source
     else:
         proc = open_ffprobe_get_frames(source, stream_spec)
+        assert proc.stdout is not None
         source_iter = proc.stdout
 
     for f in read_frame_data_gen_internal(source_iter):
@@ -445,7 +468,6 @@ def prepare_matplot(
 ) -> None:
     """ Prepares the chart and sets up a new figure """
 
-    matplotlib.use("Qt5Agg")
     matplot.figure(figsize=[10, 4]).canvas.set_window_title(window_title)
     matplot.title("Stream Bitrate over Time")
     matplot.xlabel("Time")
@@ -478,7 +500,7 @@ def add_stacked_areas(
     and adds a stacking bar for each
     """
     bars = {}
-    sums_of_values: List[int] = []
+    sums_of_values = [] # type: List[int]
     frames_list = frames if isinstance(frames, list) else list(frames)
 
     # calculate bitrate for each frame type
@@ -488,7 +510,7 @@ def add_stacked_areas(
         if len(filtered_frames) == 0:
             continue
 
-        bitrates = dict(frames_to_kbits(filtered_frames, 0, duration))
+        bitrates = OrderedDict(frames_to_kbits(filtered_frames, 0, duration))
         seconds = list(bitrates.keys())
         values = list(bitrates.values())
 
@@ -517,13 +539,13 @@ def add_area(
         max_display_values: int,
         stream_type: str
 ) -> Tuple[int, int]:
-    bitrates = dict(frames_to_kbits(frames, 0, duration))
+    bitrates = OrderedDict(frames_to_kbits(frames, 0, duration))
     bitrate_max = max(bitrates.values())
     bitrate_mean = int(statistics.mean(bitrates.values()))
 
     if downscale and 0 < max_display_values < duration:
         factor = duration // max_display_values
-        bitrates = dict(downscale_bitrate(bitrates, factor))
+        bitrates = OrderedDict(downscale_bitrate(bitrates, factor))
 
     seconds = list(bitrates.keys())
     values = list(bitrates.values())
