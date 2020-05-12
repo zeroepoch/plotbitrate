@@ -5,16 +5,16 @@ with open("README.md", "r") as fh:
     long_description = fh.read()    
 
 setup(
-    name='rezun-plotbitrate',
+    name='plotbitrate',
     version=__version__,
     packages=find_packages(),
     description='A simple bitrate plotter for media files',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author='Steve Schmidt',
-    author_email='azcane@gmail.com',
+    author='Eric Work',
+    author_email='work.eric@gmail.com',
     license='BSD',
-    url='https://github.com/rezun/plotbitrate',
+    url='https://github.com/zeroepoch/plotbitrate',
     py_modules=['plotbitrate'],
     classifiers=[
         'Topic :: Multimedia :: Sound/Audio',
