@@ -204,7 +204,7 @@ def save_raw_xml(
     and saves it to target_path.
     """
     if not no_progress:
-        last_percent = 0
+        last_percent = 0.0
         with open_ffprobe_get_format(file_path) as proc_format:
             assert proc_format.stdout is not None
             duration = parse_media_duration(proc_format.stdout)
@@ -242,9 +242,9 @@ def save_raw_xml(
                         try_get_frame_time_from_node(eTree.fromstring(line))
 
                     if frame_time is not None:
-                        percent = math.floor((frame_time / duration) * 100.0)
+                        percent = round((frame_time / duration) * 100.0, 1)
                     else:
-                        percent = 0
+                        percent = 0.0
 
                     if percent > last_percent:
                         print_progress(percent)
@@ -294,12 +294,12 @@ def try_get_frame_time_from_node(node: eTree.Element) -> Optional[float]:
 
 
 def create_progress(duration: int):
-    last_percent = 0
+    last_percent = 0.0
 
     def report_progress(frame: Optional[Frame]):
         nonlocal last_percent
         if frame:
-            percent = math.floor((frame.time / duration) * 100.0)
+            percent = round((frame.time / duration) * 100.0, 1)
             if percent > last_percent:
                 print_progress(percent)
                 last_percent = percent
@@ -312,7 +312,7 @@ def create_progress(duration: int):
 
 
 def print_progress(percent: float) -> None:
-    print("Progress: {:2}%".format(percent), end="\r")
+    print("Progress: {:5.1f}%".format(percent), end="\r")
 
 
 def frame_elements(source_iterable: Iterable) -> Iterable[eTree.Element]:
