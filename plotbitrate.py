@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-__version__ = "1.1.0.a1"
+__version__ = "1.0.6.dev1"
 
 import argparse
 import csv
@@ -40,7 +40,7 @@ import shutil
 import statistics
 import subprocess
 import sys
-import inspect
+from importlib import util
 from collections import OrderedDict
 from enum import Enum
 from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple, \
@@ -54,9 +54,9 @@ except ImportError:
 
 # check for matplot lib
 try:
-    import matplotlib # type: ignore
+    import matplotlib  # type: ignore
     matplotlib.use("Qt5Agg")
-    import matplotlib.pyplot as matplot # type: ignore
+    import matplotlib.pyplot as matplot  # type: ignore
 except ImportError:
     sys.exit("Error: Missing package 'python3-matplotlib'")
 
@@ -64,21 +64,15 @@ except ImportError:
 if not shutil.which("ffprobe"):
     sys.exit("Error: Missing ffprobe from package 'ffmpeg'")
 
-if sys.version_info >= (3, 6):
-    # if python 3.6 or greater: use dataclass version of Frame
-    import dataclasses
-    from frame_dataclass import Frame
-else:
-    # use normal class version of Frame
-    class Frame:
-        def __init__(self, time, size, pict_type):
-            self.time = time
-            self.size = size
-            self.pict_type = pict_type
-        
-        @staticmethod
-        def get_fields():
-            return ['time', 'size', 'pict_type']
+# check for PyQt5
+try:
+    from PyQt5 import QtWidgets, QtCore
+except ImportError:
+    sys.exit("Error: Missing package 'PyQt5'")
+
+
+from frame import Frame
+
 
 class Color(Enum):
     I = "red"
@@ -261,10 +255,7 @@ def save_raw_xml(
 
 def save_raw_csv(raw_frames: Iterable[Frame], target_path: str) -> None:
     """ Saves raw_frames as a csv file. """
-    if sys.version_info >= (3, 6):
-        fields = [f.name for f in dataclasses.fields(Frame)]
-    else:
-        fields = Frame.get_fields()
+    fields = Frame.get_fields()
 
     with open(target_path, "w") as file:
         wr = csv.writer(file, quoting=csv.QUOTE_NONE)
@@ -335,7 +326,7 @@ def read_frame_data_gen(
         stream_spec: str,
         frame_progress_func: Optional[Callable[[Optional[Frame]], None]]
 ) -> Generator[Frame, None, None]:
-    source_iter = "" # type: Union[str, IO]
+    source_iter = ""  # type: Union[str, IO]
     if source.endswith(".xml"):
         source_iter = source
     else:
@@ -500,7 +491,7 @@ def add_stacked_areas(
     and adds a stacking bar for each
     """
     bars = {}
-    sums_of_values = [] # type: List[int]
+    sums_of_values = []  # type: List[int]
     frames_list = frames if isinstance(frames, list) else list(frames)
 
     # calculate bitrate for each frame type
