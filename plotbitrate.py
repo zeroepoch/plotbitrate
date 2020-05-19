@@ -41,37 +41,12 @@ import statistics
 import subprocess
 import sys
 from collections import OrderedDict
+from importlib import util
 from enum import Enum
 from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple, \
     Generator
-    
-# prefer C-based ElementTree
-try:
-    import xml.etree.cElementTree as eTree
-except ImportError:
-    import xml.etree.ElementTree as eTree  # type: ignore
-
-# check for matplot lib
-try:
-    import matplotlib  # type: ignore
-    matplotlib.use("Qt5Agg")
-    import matplotlib.pyplot as matplot  # type: ignore
-except ImportError:
-    sys.exit("Error: Missing package 'python3-matplotlib'")
-
-# check for ffprobe in path
-if not shutil.which("ffprobe"):
-    sys.exit("Error: Missing ffprobe from package 'ffmpeg'")
-
-# check for PyQt5
-try:
-    from PyQt5 import QtWidgets, QtCore
-except ImportError:
-    sys.exit("Error: Missing package 'PyQt5'")
-
-
 from frame import Frame
-
+    
 
 class Color(Enum):
     I = "red"
@@ -79,6 +54,37 @@ class Color(Enum):
     B = "blue"
     AUDIO = "C2"
     FRAME = "C0"
+
+
+class ConsoleColors:
+    WARNING = '\033[93m'
+    ERROR = '\033[91m'
+    END_COLOR = '\033[0m'
+
+
+# prefer C-based ElementTree
+try:
+    import xml.etree.cElementTree as eTree
+except ImportError:
+    import xml.etree.ElementTree as eTree  # type: ignore
+    
+# check for PyQt5
+if util.find_spec("PyQt5") is None:
+    sys.exit(ConsoleColors.ERROR + "Error: Missing package 'PyQt5'")
+
+# check for matplot lib
+try:
+    import matplotlib  # type: ignore
+    matplotlib.use("Qt5Agg")
+    import matplotlib.pyplot as matplot  # type: ignore
+except ImportError:
+    sys.exit(ConsoleColors.ERROR +
+             "Error: Missing package 'python3-matplotlib'")
+
+# check for ffprobe in path
+if not shutil.which("ffprobe"):
+    sys.exit(ConsoleColors.ERROR +
+             "Error: Missing ffprobe from package 'ffmpeg'")
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -117,16 +123,16 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-d",
         "--downscale",
-        help="Enable downscaling of values, so that the visible" +
-             "level of detail in the graph is reduced and rendered faster. " +
-             "This is useful if the video is very long and an overview " +
+        help="Enable downscaling of values, so that the visible"
+             "level of detail in the graph is reduced and rendered faster. "
+             "This is useful if the video is very long and an overview "
              "of the bitrate fluctuation is sufficient.",
         action="store_true")
     parser.add_argument(
         "--max-display-values",
-        help="If downscaling is enabled, set the maximum number of values " +
-             "shown on the x axis. Will downscale if video length is longer " +
-             "than the given value. Will not downscale if set to -1. " +
+        help="If downscaling is enabled, set the maximum number of values "
+             "shown on the x axis. Will downscale if video length is longer "
+             "than the given value. Will not downscale if set to -1. "
              "Not compatible with option --show-frame-types (default: 700)",
         type=int,
         default=700)
@@ -138,7 +144,22 @@ def parse_arguments() -> argparse.Namespace:
 
     # check given y-axis limits
     if arguments.min and arguments.max and (arguments.min >= arguments.max):
-        sys.exit("Error: Maximum should be greater than minimum")
+        sys.exit(ConsoleColors.ERROR +
+                 "Error: Maximum should be greater than minimum")
+        
+    # check if downscale is missing when max-display-values is given
+    if arguments.max_display_values != \
+            parser.get_default("max_display_values") \
+            and not arguments.downscale:
+        print(ConsoleColors.WARNING +
+              "Warning: using --max-display-values without "
+              "--downscale has no effect" + ConsoleColors.END_COLOR)
+    
+    # check if downscale and show-frame-types are both given
+    if arguments.downscale and arguments.show_frame_types:
+        sys.exit(ConsoleColors.ERROR +
+                 "Error: Options --downscale and --show-frame-types cannot "
+                 "be given both")
 
     arguments_dict = vars(arguments)
 
@@ -293,7 +314,8 @@ def try_get_frame_time_from_node(node: eTree.Element) -> Optional[float]:
 
 
 def create_progress(duration: int):
-    last_percent = 0.0
+    # set to negative, so 0% gets reported
+    last_percent = -1.0
 
     def report_progress(frame: Optional[Frame]):
         nonlocal last_percent
