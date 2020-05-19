@@ -2,8 +2,8 @@
 #
 # FFProbe Bitrate Graph
 #
-# Original work Copyright (c) 2013-2019, Eric Work
-# Modified work Copyright (c) 2019, Steve Schmidt
+# Original work Copyright (c) 2013-2020, Eric Work
+# Modified work Copyright (c) 2019-2020, Steve Schmidt
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@ import shutil
 import statistics
 import subprocess
 import sys
-from importlib import util
 from collections import OrderedDict
 from enum import Enum
 from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple, \
@@ -86,7 +85,7 @@ def parse_arguments() -> argparse.Namespace:
     """ Parses all arguments and returns them as an object. """
     
     if sys.version_info >= (3, 6):
-        supported_filetypes = matplotlib.figure.Figure().canvas\
+        supported_filetypes = matplotlib.figure.Figure().canvas \
             .get_supported_filetypes().keys()
     else:
         fig = matplot.figure()
@@ -517,7 +516,8 @@ def add_stacked_areas(
         color = Color[frame_type].value if frame_type in dir(Color) \
             else Color.FRAME.value
         bars[frame_type] = matplot.fill_between(
-            seconds, values_min, values_max, linewidth=0.5, color=color
+            seconds, values_min, values_max, linewidth=0.5, color=color,
+            zorder=2
         )
 
     return max(sums_of_values), int(statistics.mean(sums_of_values)), bars
@@ -542,7 +542,8 @@ def add_area(
     values = list(bitrates.values())
     color = Color.AUDIO.value if stream_type == "audio" else Color.FRAME.value
     matplot.plot(seconds, values, linewidth=0.5, color=color)
-    matplot.fill_between(seconds, 0, values, linewidth=0.5, color=color)
+    matplot.fill_between(seconds, 0, values, linewidth=0.5, color=color,
+                         zorder=2)
     return bitrate_max, bitrate_mean
 
 
