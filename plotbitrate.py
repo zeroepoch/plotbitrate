@@ -46,7 +46,7 @@ from enum import Enum
 from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple, \
     Generator
 from frame import Frame
-    
+
 
 class Color(Enum):
     I = "red"
@@ -57,9 +57,19 @@ class Color(Enum):
 
 
 class ConsoleColors:
-    WARNING = '\033[93m'
-    ERROR = '\033[91m'
-    END_COLOR = '\033[0m'
+    WARNING = '\033[93m'  # yellow
+    ERROR = '\033[91m'  # red
+    END_COLOR = '\033[0m'  # restore default color
+
+
+def exit_with_error(error_message: str) -> None:
+    sys.exit(ConsoleColors.ERROR + "Error: " + error_message +
+             ConsoleColors.END_COLOR)
+
+
+def print_warning(warning_message: str) -> None:
+    print(ConsoleColors.WARNING + "Warning: " + warning_message +
+          ConsoleColors.END_COLOR)
 
 
 # prefer C-based ElementTree
@@ -70,7 +80,7 @@ except ImportError:
     
 # check for PyQt5
 if util.find_spec("PyQt5") is None:
-    sys.exit(ConsoleColors.ERROR + "Error: Missing package 'PyQt5'")
+    exit_with_error("Missing package 'PyQt5'")
 
 # check for matplot lib
 try:
@@ -78,13 +88,14 @@ try:
     matplotlib.use("Qt5Agg")
     import matplotlib.pyplot as matplot  # type: ignore
 except ImportError:
-    sys.exit(ConsoleColors.ERROR +
-             "Error: Missing package 'python3-matplotlib'")
+    # satisfy undefined variable warnings
+    matplotlib = None
+    matplot = None
+    exit_with_error("Missing package 'python3-matplotlib'")
 
 # check for ffprobe in path
 if not shutil.which("ffprobe"):
-    sys.exit(ConsoleColors.ERROR +
-             "Error: Missing ffprobe from package 'ffmpeg'")
+    exit_with_error("Missing ffprobe from package 'ffmpeg'")
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -140,26 +151,23 @@ def parse_arguments() -> argparse.Namespace:
 
     # check if format given without output file
     if arguments.format and not arguments.output:
-        sys.exit("Error: Output format requires output file")
+        exit_with_error("Output format requires output file")
 
     # check given y-axis limits
     if arguments.min and arguments.max and (arguments.min >= arguments.max):
-        sys.exit(ConsoleColors.ERROR +
-                 "Error: Maximum should be greater than minimum")
+        exit_with_error("Maximum should be greater than minimum")
         
     # check if downscale is missing when max-display-values is given
     if arguments.max_display_values != \
             parser.get_default("max_display_values") \
             and not arguments.downscale:
-        print(ConsoleColors.WARNING +
-              "Warning: using --max-display-values without "
-              "--downscale has no effect" + ConsoleColors.END_COLOR)
+        print_warning("Using --max-display-values without "
+                      "--downscale has no effect")
     
     # check if downscale and show-frame-types are both given
     if arguments.downscale and arguments.show_frame_types:
-        sys.exit(ConsoleColors.ERROR +
-                 "Error: Options --downscale and --show-frame-types cannot "
-                 "be given both")
+        exit_with_error("Options --downscale and --show-frame-types cannot "
+                        "be given both")
 
     arguments_dict = vars(arguments)
 
@@ -206,8 +214,7 @@ def open_ffprobe_get_frames(
          "-threads", str(multiprocessing.cpu_count()),
          "-print_format", "xml",
          "-show_entries",
-         "frame=pict_type,pkt_duration_time,pkt_pts_time," +
-         "best_effort_timestamp_time,pkt_size",
+         "frame=pict_type,pkt_pts_time,best_effort_timestamp_time,pkt_size",
          file_path
          ],
         stdout=subprocess.PIPE)
@@ -242,7 +249,7 @@ def save_raw_xml(
                  "-threads", str(multiprocessing.cpu_count()),
                  "-print_format", "xml",
                  "-show_entries",
-                 "format:frame=pict_type,pkt_duration_time,pkt_pts_time," +
+                 "format:frame=pict_type,pkt_pts_time,"
                  "best_effort_timestamp_time,pkt_size",
                  file_path
                  ],
@@ -325,7 +332,7 @@ def create_progress(duration: int):
                 print_progress(percent)
                 last_percent = percent
         else:
-            last_percent = 100
+            last_percent = 100.0
             print_progress(last_percent)
             print()
 
@@ -598,7 +605,7 @@ def main():
 
     duration = math.floor(media_duration(args.input))
     if duration == 0:
-        sys.exit("Error: Failed to determine stream duration")
+        exit_with_error("Failed to determine stream duration")
 
     progress_func = create_progress(duration) if not args.no_progress else None
     frames = read_frame_data_gen(
