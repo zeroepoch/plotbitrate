@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-__version__ = "1.0.6"
+__version__ = "1.0.7.1"
 
 import argparse
 import csv
@@ -119,6 +119,9 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Graph bitrate for audio/video stream")
     parser.add_argument("input", help="input file/stream", metavar="INPUT")
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s {version}'.format(
+                            version=__version__))
     parser.add_argument("-s", "--stream", help="Stream type (default: video)",
                         choices=["audio", "video"], default="video")
     parser.add_argument("-o", "--output", help="Output file")
