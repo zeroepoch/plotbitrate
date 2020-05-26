@@ -294,10 +294,10 @@ def save_raw_csv(raw_frames: Iterable[Frame], target_path: str) -> None:
 def media_duration(source: str) -> float:
     if source.endswith(".xml"):
         return parse_media_duration(source)
-    else:
-        with open_ffprobe_get_format(source) as process:
-            assert process.stdout is not None
-            return parse_media_duration(process.stdout)
+
+    with open_ffprobe_get_format(source) as process:
+        assert process.stdout is not None
+        return parse_media_duration(process.stdout)
 
 
 def parse_media_duration(source: Union[str, IO]) -> float:
@@ -427,7 +427,7 @@ def frames_to_kbits(
                 frame_second = math.floor(frame.time)
                 if frame_second < second:
                     continue
-                elif frame_second == second:
+                if frame_second == second:
                     # frame is current second, so sum up
                     size += frame.size
                 else:
