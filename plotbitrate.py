@@ -77,7 +77,7 @@ try:
     import xml.etree.cElementTree as eTree
 except ImportError:
     import xml.etree.ElementTree as eTree  # type: ignore
-    
+
 # check for PyQt5
 if util.find_spec("PyQt5") is None:
     exit_with_error("Missing package 'PyQt5'")
@@ -100,7 +100,7 @@ if not shutil.which("ffprobe"):
 
 def parse_arguments() -> argparse.Namespace:
     """ Parses all arguments and returns them as an object. """
-    
+
     if sys.version_info >= (3, 6):
         supported_filetypes = matplotlib.figure.Figure().canvas \
             .get_supported_filetypes().keys()
@@ -111,7 +111,7 @@ def parse_arguments() -> argparse.Namespace:
 
     # get list of supported matplotlib formats
     format_list = list(supported_filetypes)
-    
+
     format_list.append("xml_raw")
     format_list.append("csv_raw")
 
@@ -156,18 +156,18 @@ def parse_arguments() -> argparse.Namespace:
     # check given y-axis limits
     if arguments.min and arguments.max and (arguments.min >= arguments.max):
         exit_with_error("Maximum should be greater than minimum")
-        
+
     # check if downscale is missing when max-display-values is given
     if arguments.max_display_values != \
             parser.get_default("max_display_values") \
             and not arguments.downscale:
         print_warning("Using --max-display-values without "
                       "--downscale has no effect")
-    
+
     # check if downscale and show-frame-types are both given
     if arguments.downscale and arguments.show_frame_types:
         exit_with_error("Options --downscale and --show-frame-types cannot "
-                        "be given both")
+                        "both be given at the same time")
 
     arguments_dict = vars(arguments)
 
