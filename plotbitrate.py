@@ -29,13 +29,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-__version__ = "1.0.7.1"
+__version__ = "1.0.7.2"
 
 import argparse
 import csv
 import datetime
 import math
 import multiprocessing
+import platform
 import shutil
 import statistics
 import subprocess
@@ -72,6 +73,11 @@ def print_warning(warning_message: str) -> None:
           ConsoleColors.END_COLOR)
 
 
+def is_wsl() -> bool:
+    platform_info = platform.uname()
+    return platform_info.system == "Linux" and 'microsoft' in platform_info.release.lower()
+
+
 # prefer C-based ElementTree
 try:
     import xml.etree.cElementTree as eTree
@@ -85,13 +91,23 @@ if util.find_spec("PyQt5") is None:
 # check for matplot lib
 try:
     import matplotlib  # type: ignore
-    matplotlib.use("Qt5Agg")
-    import matplotlib.pyplot as matplot  # type: ignore
-except ImportError:
+except ImportError as err:
     # satisfy undefined variable warnings
     matplotlib = None
-    matplot = None
     exit_with_error("Missing package 'python3-matplotlib'")
+
+# init backend
+try:
+    if is_wsl():
+        backend = "TkAgg"
+    else:
+        backend = "Qt5Agg"
+    matplotlib.use(backend)
+    import matplotlib.pyplot as matplot  # type: ignore
+except ImportError as err:
+    # satisfy undefined variable warnings
+    matplot = None
+    exit_with_error(err.msg)
 
 # check for ffprobe in path
 if not shutil.which("ffprobe"):
