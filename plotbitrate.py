@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-__version__ = "1.0.7.2"
+__version__ = "1.0.7.3"
 
 import argparse
 import csv
@@ -506,7 +506,8 @@ def prepare_matplot(
 ) -> None:
     """ Prepares the chart and sets up a new figure """
 
-    matplot.figure(figsize=[10, 4]).canvas.set_window_title(window_title)
+    matplot.figure(figsize=[10, 4])
+    matplot.get_current_fig_manager().set_window_title(window_title)
     matplot.title("Stream Bitrate over Time")
     matplot.xlabel("Time")
     matplot.ylabel("Bitrate (kbit/s)")
