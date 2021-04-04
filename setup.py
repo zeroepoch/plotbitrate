@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 from plotbitrate import __version__
 
 with open("README.md", "r") as fh:
-    long_description = fh.read()    
+    long_description = fh.read()
 
 setup(
     name='plotbitrate',

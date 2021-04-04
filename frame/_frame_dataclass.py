@@ -7,7 +7,7 @@ class Frame:
     time: float
     size: int
     pict_type: str
-    
+
     @staticmethod
     def get_fields():
         return [f.name for f in dataclasses.fields(Frame)]

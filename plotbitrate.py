@@ -2,8 +2,8 @@
 #
 # FFProbe Bitrate Graph
 #
-# Original work Copyright (c) 2013-2020, Eric Work
-# Modified work Copyright (c) 2019-2020, Steve Schmidt
+# Original work Copyright (c) 2013-2021, Eric Work
+# Modified work Copyright (c) 2019-2021, Steve Schmidt
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -153,7 +153,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-d",
         "--downscale",
-        help="Enable downscaling of values, so that the visible"
+        help="Enable downscaling of values, so that the visible "
              "level of detail in the graph is reduced and rendered faster. "
              "This is useful if the video is very long and an overview "
              "of the bitrate fluctuation is sufficient.",

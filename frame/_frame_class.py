@@ -3,7 +3,7 @@ class Frame:
         self.time = time
         self.size = size
         self.pict_type = pict_type
-    
+
     @staticmethod
     def get_fields():
         return ['time', 'size', 'pict_type']
