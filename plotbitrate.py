@@ -342,11 +342,15 @@ def try_get_frame_time_from_node(node: eTree.Element) -> Optional[float]:
 def create_progress(duration: int):
     # set to negative, so 0% gets reported
     last_percent = -1.0
+    offset = -1
 
     def report_progress(frame: Optional[Frame]):
         nonlocal last_percent
+        nonlocal offset
         if frame:
-            percent = round((frame.time / duration) * 100.0, 1)
+            if offset == -1:
+                offset = frame.time
+            percent = round(((frame.time-offset) / duration) * 100.0, 1)
             if percent > last_percent:
                 print_progress(percent)
                 last_percent = percent
@@ -415,7 +419,8 @@ def read_frame_data_gen_internal(
 def frames_to_kbits(
         frames: Iterable[Frame],
         seconds_start: int,
-        seconds_end: int
+        seconds_end: int,
+        seconds_offset: int
 ) -> Generator[Tuple[int, int], None, None]:
     """
     Creates a generator yielding every second between seconds_start
@@ -428,7 +433,7 @@ def frames_to_kbits(
     last_frame_size = 0
 
     # loop over every second
-    for second in range(seconds_start, seconds_end + 1):
+    for second in range(seconds_start+seconds_offset, seconds_end + seconds_offset + 1):
 
         # restore size of a saved frame from last iteration
         # if it's for the current second
@@ -456,7 +461,7 @@ def frames_to_kbits(
                     last_frame_size = frame.size
                     break
 
-        yield second, int(size * 8 / 1000)
+        yield (second-seconds_offset), int(size * 8 / 1000)
 
 
 def downscale_bitrate(
@@ -542,6 +547,10 @@ def add_stacked_areas(
     sums_of_values = []  # type: List[int]
     frames_list = frames if isinstance(frames, list) else list(frames)
 
+    # transport stream files may not start from time=0, so work out what the actual start time is
+    # then work using that as an offset.
+    offset = math.floor(frames_list[0].time)
+
     # calculate bitrate for each frame type
     # and add a stacking bar for each
     for frame_type in ["I", "B", "P", "?"]:
@@ -549,7 +558,7 @@ def add_stacked_areas(
         if len(filtered_frames) == 0:
             continue
 
-        bitrates = OrderedDict(frames_to_kbits(filtered_frames, 0, duration))
+        bitrates = OrderedDict(frames_to_kbits(filtered_frames, 0, duration, offset))
         seconds = list(bitrates.keys())
         values = list(bitrates.values())
 
@@ -579,7 +588,12 @@ def add_area(
         max_display_values: int,
         stream_type: str
 ) -> Tuple[int, int]:
-    bitrates = OrderedDict(frames_to_kbits(frames, 0, duration))
+    # transport stream files may not start from time=0, so work out what the actual start time is
+    # then work using that as an offset.
+    frames_list = frames if isinstance(frames, list) else list(frames)
+    offset = math.floor(frames_list[0].time)
+    
+    bitrates = OrderedDict(frames_to_kbits(frames_list, 0, duration, offset))
     bitrate_max = max(bitrates.values())
     bitrate_mean = int(statistics.mean(bitrates.values()))
 
