@@ -350,7 +350,7 @@ def create_progress(duration: int):
         if frame:
             if offset == -1:
                 offset = frame.time
-            percent = round(((frame.time-offset) / duration) * 100.0, 1)
+            percent = round(((frame.time - offset) / duration) * 100.0, 1)
             if percent > last_percent:
                 print_progress(percent)
                 last_percent = percent
