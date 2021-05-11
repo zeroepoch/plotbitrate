@@ -433,7 +433,7 @@ def frames_to_kbits(
     last_frame_size = 0
 
     # loop over every second
-    for second in range(seconds_start+seconds_offset, seconds_end + seconds_offset + 1):
+    for second in range(seconds_start + seconds_offset, seconds_end + seconds_offset + 1):
 
         # restore size of a saved frame from last iteration
         # if it's for the current second
