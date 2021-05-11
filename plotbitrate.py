@@ -461,7 +461,7 @@ def frames_to_kbits(
                     last_frame_size = frame.size
                     break
 
-        yield (second-seconds_offset), int(size * 8 / 1000)
+        yield (second - seconds_offset), int(size * 8 / 1000)
 
 
 def downscale_bitrate(
