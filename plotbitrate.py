@@ -96,6 +96,8 @@ except ImportError as err:
     matplotlib = None
     exit_with_error("Missing package 'python3-matplotlib'")
 
+import matplotlib.pyplot as matplot # type: ignore
+    
 # check for ffprobe in path
 if not shutil.which("ffprobe"):
     exit_with_error("Missing ffprobe from package 'ffmpeg'")
@@ -626,7 +628,6 @@ def main():
             else:
                 backend = "Qt5Agg"
             matplotlib.use(backend)
-            import matplotlib.pyplot as matplot  # type: ignore
         except ImportError as err:
             # satisfy undefined variable warnings
             matplot = None
