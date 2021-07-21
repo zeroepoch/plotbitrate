@@ -629,8 +629,6 @@ def main():
                 backend = "Qt5Agg"
             matplotlib.use(backend)
         except ImportError as err:
-            # satisfy undefined variable warnings
-            matplot = None
             exit_with_error(err.msg)
 
     # if the output is raw xml, just call the function and exit
