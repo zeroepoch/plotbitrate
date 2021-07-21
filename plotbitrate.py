@@ -96,19 +96,6 @@ except ImportError as err:
     matplotlib = None
     exit_with_error("Missing package 'python3-matplotlib'")
 
-# init backend
-try:
-    if is_wsl():
-        backend = "TkAgg"
-    else:
-        backend = "Qt5Agg"
-    matplotlib.use(backend)
-    import matplotlib.pyplot as matplot  # type: ignore
-except ImportError as err:
-    # satisfy undefined variable warnings
-    matplot = None
-    exit_with_error(err.msg)
-
 # check for ffprobe in path
 if not shutil.which("ffprobe"):
     exit_with_error("Missing ffprobe from package 'ffmpeg'")
@@ -629,6 +616,21 @@ def draw_horizontal_line_with_text(
 
 def main():
     args = parse_arguments()
+    
+    # check if an output is requested, otherwise try to initialize backend, and exit if it fails 
+    if not args.otuput:
+        # init backend
+        try:
+            if is_wsl():
+                backend = "TkAgg"
+            else:
+                backend = "Qt5Agg"
+            matplotlib.use(backend)
+            import matplotlib.pyplot as matplot  # type: ignore
+        except ImportError as err:
+            # satisfy undefined variable warnings
+            matplot = None
+            exit_with_error(err.msg)
 
     # if the output is raw xml, just call the function and exit
     if args.format == "xml_raw":
