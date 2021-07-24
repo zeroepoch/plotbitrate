@@ -91,13 +91,13 @@ if util.find_spec("PyQt5") is None:
 # check for matplot lib
 try:
     import matplotlib  # type: ignore
+    import matplotlib.pyplot as matplot  # type: ignore
 except ImportError as err:
     # satisfy undefined variable warnings
     matplotlib = None
+    matplot = None
     exit_with_error("Missing package 'python3-matplotlib'")
 
-import matplotlib.pyplot as matplot # type: ignore
-    
 # check for ffprobe in path
 if not shutil.which("ffprobe"):
     exit_with_error("Missing ffprobe from package 'ffmpeg'")
@@ -581,7 +581,7 @@ def add_area(
     # then work using that as an offset.
     frames_list = frames if isinstance(frames, list) else list(frames)
     offset = math.floor(frames_list[0].time)
-    
+
     bitrates = OrderedDict(frames_to_kbits(frames_list, 0, duration, offset))
     bitrate_max = max(bitrates.values())
     bitrate_mean = int(statistics.mean(bitrates.values()))
@@ -618,9 +618,9 @@ def draw_horizontal_line_with_text(
 
 def main():
     args = parse_arguments()
-    
-    # check if an output is requested, otherwise try to initialize backend, and exit if it fails 
-    if not args.otuput:
+
+    # check if an output is requested, otherwise try to initialize backend, and exit if it fails
+    if not args.output:
         # init backend
         try:
             if is_wsl():
