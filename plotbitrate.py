@@ -91,23 +91,12 @@ if util.find_spec("PyQt5") is None:
 # check for matplot lib
 try:
     import matplotlib  # type: ignore
-except ImportError as err:
-    # satisfy undefined variable warnings
-    matplotlib = None
-    exit_with_error("Missing package 'python3-matplotlib'")
-
-# init backend
-try:
-    if is_wsl():
-        backend = "TkAgg"
-    else:
-        backend = "Qt5Agg"
-    matplotlib.use(backend)
     import matplotlib.pyplot as matplot  # type: ignore
 except ImportError as err:
     # satisfy undefined variable warnings
+    matplotlib = None
     matplot = None
-    exit_with_error(err.msg)
+    exit_with_error("Missing package 'python3-matplotlib'")
 
 # check for ffprobe in path
 if not shutil.which("ffprobe"):
@@ -592,7 +581,7 @@ def add_area(
     # then work using that as an offset.
     frames_list = frames if isinstance(frames, list) else list(frames)
     offset = math.floor(frames_list[0].time)
-    
+
     bitrates = OrderedDict(frames_to_kbits(frames_list, 0, duration, offset))
     bitrate_max = max(bitrates.values())
     bitrate_mean = int(statistics.mean(bitrates.values()))
@@ -629,6 +618,18 @@ def draw_horizontal_line_with_text(
 
 def main():
     args = parse_arguments()
+
+    # check if an output is requested, otherwise try to initialize backend, and exit if it fails
+    if not args.output:
+        # init backend
+        try:
+            if is_wsl():
+                backend = "TkAgg"
+            else:
+                backend = "Qt5Agg"
+            matplotlib.use(backend)
+        except ImportError as err:
+            exit_with_error(err.msg)
 
     # if the output is raw xml, just call the function and exit
     if args.format == "xml_raw":
