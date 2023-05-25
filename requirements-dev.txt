@@ -1,5 +1,5 @@
 matplotlib
-pyqt5
+pyqt6
 setuptools
 wheel
 mypy
