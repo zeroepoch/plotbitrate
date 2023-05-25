@@ -30,6 +30,6 @@ setup(
     },
     install_requires=[
         'matplotlib',
-        'pyqt5'
+        'pyqt6'
     ]
 )
