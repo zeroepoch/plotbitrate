@@ -84,9 +84,9 @@ try:
 except ImportError:
     import xml.etree.ElementTree as eTree  # type: ignore
 
-# check for PyQt6
-if util.find_spec("PyQt6") is None:
-    exit_with_error("Missing package 'PyQt6'")
+# check for PyQt5 or PyQt6
+if util.find_spec("PyQt6") is None and util.find_spec("PyQt5") is None:
+    exit_with_error("Missing package 'PyQt5' or 'PyQt6'")
 
 # check for matplot lib
 try:
