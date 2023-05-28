@@ -19,10 +19,10 @@ setup(
     classifiers=[
         'Topic :: Multimedia :: Sound/Audio',
         'Natural Language :: English',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3',
     ],
     keywords='ffprobe bitrate plot',
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     entry_points={
         'console_scripts': [
             'plotbitrate = plotbitrate:main'

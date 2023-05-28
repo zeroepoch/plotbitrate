@@ -16,9 +16,10 @@ Possible outputs are:
 
 Requirements:
 
-* Python >= 3.5
-* FFMpeg >= 1.2 with the ffprobe command
+* Python >= 3.6
+* FFmpeg >= 1.2 with the ffprobe command
 * Matplotlib
+* PyQt5 or PyQt6
 
 For using the script from source, install the requirements with
 `pip install -r requirements.txt` or use the `requirements-dev.txt`

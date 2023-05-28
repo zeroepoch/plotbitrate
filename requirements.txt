@@ -1,3 +1,2 @@
-matplotlib>=3.2.1;python_version>="3.6"
-matplotlib>=3.0.3;python_version=="3.5"
+matplotlib>=3.2.1
 PyQt6>=6.5.0
