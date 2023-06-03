@@ -85,10 +85,6 @@ try:
 except ImportError:
     import xml.etree.ElementTree as eTree  # type: ignore
 
-# check for PyQt5 or PyQt6
-if util.find_spec("PyQt6") is None and util.find_spec("PyQt5") is None:
-    exit_with_error("Missing package 'PyQt5' or 'PyQt6'")
-
 # check for matplot lib
 try:
     import matplotlib  # type: ignore
@@ -627,6 +623,9 @@ def main():
             if is_wsl():
                 backend = "TkAgg"
             else:
+                # check for PyQt5 or PyQt6
+                if util.find_spec("PyQt6") is None and util.find_spec("PyQt5") is None:
+                    exit_with_error("Missing package 'PyQt5' or 'PyQt6'")
                 backend = "QtAgg"
             matplotlib.use(backend)
         except ImportError as err:

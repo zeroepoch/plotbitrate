@@ -15,11 +15,10 @@ Possible outputs are:
 * Raw frame data (csv, xml)
 
 Requirements:
-
 * Python >= 3.6
 * FFmpeg >= 1.2 with the ffprobe command
 * Matplotlib
-* PyQt5 or PyQt6
+* PyQt5 or PyQt6 (optional for image file output)
 
 For using the script from source, install the requirements with
 `pip install -r requirements.txt` or use the `requirements-dev.txt`
