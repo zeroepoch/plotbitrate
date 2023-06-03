@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-__version__ = "1.1.0.0"
+__version__ = "1.1.1.0"
 
 import argparse
 import csv
