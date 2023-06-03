@@ -36,14 +36,15 @@ import csv
 import datetime
 import math
 import multiprocessing
+import os
 import platform
 import shutil
 import statistics
 import subprocess
 import sys
 from collections import OrderedDict
-from importlib import util
 from enum import Enum
+from importlib import util
 from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple, \
     Generator
 from frame import Frame
@@ -58,9 +59,9 @@ class Color(Enum):
 
 
 class ConsoleColors:
-    WARNING = '\033[93m'  # yellow
-    ERROR = '\033[91m'  # red
-    END_COLOR = '\033[0m'  # restore default color
+    WARNING = "\033[93m"  # yellow
+    ERROR = "\033[91m"  # red
+    END_COLOR = "\033[0m"  # restore default color
 
 
 def exit_with_error(error_message: str) -> None:
@@ -75,7 +76,7 @@ def print_warning(warning_message: str) -> None:
 
 def is_wsl() -> bool:
     platform_info = platform.uname()
-    return platform_info.system == "Linux" and 'microsoft' in platform_info.release.lower()
+    return platform_info.system == "Linux" and "microsoft" in platform_info.release.lower()
 
 
 # prefer C-based ElementTree
@@ -124,8 +125,8 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Graph bitrate for audio/video stream")
     parser.add_argument("input", help="input file/stream", metavar="INPUT")
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s {version}'.format(
+    parser.add_argument("--version", action="version",
+                        version="%(prog)s {version}".format(
                             version=__version__))
     parser.add_argument("-s", "--stream", help="Stream type (default: video)",
                         choices=["audio", "video"], default="video")
@@ -292,8 +293,8 @@ def save_raw_csv(raw_frames: Iterable[Frame], target_path: str) -> None:
     """ Saves raw_frames as a csv file. """
     fields = Frame.get_fields()
 
-    with open(target_path, "w") as file:
-        wr = csv.writer(file, quoting=csv.QUOTE_NONE)
+    with open(target_path, "w", newline="") as file:
+        wr = csv.writer(file, quoting=csv.QUOTE_NONE, lineterminator=os.linesep)
         wr.writerow(fields)
         for frame in raw_frames:
             wr.writerow(getattr(frame, field) for field in fields)
@@ -632,7 +633,8 @@ def main():
             exit_with_error(err.msg)
 
     # if the output is raw xml, just call the function and exit
-    if args.format == "xml_raw":
+    if args.format == "xml_raw" \
+            or (args.output and args.output.endswith(".xml") and args.format is None):
         save_raw_xml(
             args.input, args.output, args.stream_spec, args.no_progress
         )
@@ -648,7 +650,8 @@ def main():
     )
 
     # if the output is csv raw, write the file and we're done
-    if args.format == "csv_raw":
+    if args.format == "csv_raw" \
+            or (args.output and args.output.endswith(".csv") and args.format is None):
         save_raw_csv(frames, args.output)
         sys.exit(0)
 

@@ -48,6 +48,31 @@ types as this would lead to wrong graphs. This behavior can be adjusted with
 the `--max-display-values` option. The default value is 700, meaning that at
 most 700 individual seconds/bars are drawn.
 
+CSV Output
+----------
+
+You may find it useful to save the raw frame data to a CSV file so the frame
+data can be processed using another tool. This turns `plotbitrate` into more of
+a helper tool rather than a visualization tool.
+
+One example may be using `gnuplot` to show an impulse plot for every single
+frame split by frame type. Below is an example `gnuplot` script that mimics an
+earlier version of `plotbitrate`.
+
+```
+#!/usr/bin/gnuplot -persist
+set datafile separator ","
+plot "< awk -F, '{if($3 == \"I\") print}' frames.csv" u 1:2 t "I" w impulses lt rgb "red", \
+     "< awk -F, '{if($3 == \"P\") print}' frames.csv" u 1:2 t "P" w impulses lt rgb "green", \
+     "< awk -F, '{if($3 == \"B\") print}' frames.csv" u 1:2 t "B" w impulses lt rgb "blue"
+```
+
+The necessary input data can be generated using:
+
+```
+plotbitrate -o frames.csv input.mkv
+```
+
 Usage Examples
 --------------
 
