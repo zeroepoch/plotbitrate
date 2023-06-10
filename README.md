@@ -29,6 +29,14 @@ Installation
 
 `pip install plotbitrate`
 
+If you encounter the error message `qt.qpa.plugin: Could not load the Qt
+platform plugin "xcb" in "" even though it was found.` while running
+`plotbitrate`, then you may need to install your distribution's
+`libxcb-cursor0` package. If this package is already installed and/or doesn't
+resolve the issue, then you can try using `QT_DEBUG_PLUGINS=1 plotbitrate
+input.mkv 2>&1 | grep "No such file"` to determine if other libraries are
+missing.
+
 Useful Options
 --------------
 
