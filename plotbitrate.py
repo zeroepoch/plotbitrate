@@ -270,8 +270,15 @@ def save_raw_xml(
                 if not no_progress \
                         and duration > 0 \
                         and line.lstrip().startswith(b"<frame "):
-                    frame_time = \
-                        try_get_frame_time_from_node(eTree.fromstring(line))
+
+                    # fix frame tags that include side_data child tags
+                    if not line.rstrip().endswith(b"/>"):
+                        line = line.replace(b">", b"/>")
+                    try:
+                        frame_time = \
+                            try_get_frame_time_from_node(eTree.fromstring(line))
+                    except eTree.ParseError:
+                        frame_time = None
 
                     if frame_time is not None:
                         percent = round((frame_time / duration) * 100.0, 1)
@@ -281,6 +288,7 @@ def save_raw_xml(
                     if percent > last_percent:
                         print_progress(percent)
                         last_percent = percent
+
             if not no_progress:
                 print(flush=True)
 
