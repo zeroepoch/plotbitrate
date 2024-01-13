@@ -102,7 +102,6 @@ if not shutil.which("ffprobe"):
 
 def parse_arguments() -> argparse.Namespace:
     """ Parses all arguments and returns them as an object. """
-
     if sys.version_info >= (3, 6):
         supported_filetypes = matplotlib.figure.Figure().canvas \
             .get_supported_filetypes().keys()
@@ -131,8 +130,9 @@ def parse_arguments() -> argparse.Namespace:
                         choices=format_list)
     parser.add_argument("--no-progress", help="Hides progress",
                         action="store_true")
-    parser.add_argument("--min", help="Set plot minimum (kbps)", type=int)
+    parser.add_argument("--min", help="Set plot minimum (kbps)", type=int, default=0)
     parser.add_argument("--max", help="Set plot maximum (kbps)", type=int)
+    parser.add_argument("--solid", help="Do not use transparency below the curve", action="store_true")
     parser.add_argument("-t", "--show-frame-types",
                         help="Show bitrate of different frame types",
                         action="store_true")
@@ -500,8 +500,6 @@ def downscale_bitrate(
 def prepare_matplot(
         window_title: str,
         duration: int,
-        min_y: Optional[int],
-        max_y: Optional[int]
 ) -> None:
     """ Prepares the chart and sets up a new figure """
 
@@ -522,12 +520,6 @@ def prepare_matplot(
     matplot.gca().get_yaxis().set_major_formatter(
         matplotlib.ticker.FuncFormatter(
             lambda x, loc: "{:,}".format(int(x))))
-
-    # set y-axis limits if requested
-    if min_y:
-        matplot.ylim(ymin=min_y)
-    if max_y:
-        matplot.ylim(ymax=max_y)
 
 
 def add_stacked_areas(
@@ -580,7 +572,8 @@ def add_area(
         duration: int,
         downscale: bool,
         max_display_values: int,
-        stream_type: str
+        stream_type: str,
+        solid: bool
 ) -> Tuple[int, int]:
     # transport stream files may not start from time=0, so work out what the actual start time is
     # then work using that as an offset.
@@ -598,9 +591,9 @@ def add_area(
     seconds = list(bitrates.keys())
     values = list(bitrates.values())
     color = Color.AUDIO.value if stream_type == "audio" else Color.FRAME.value
-    matplot.plot(seconds, values, linewidth=0.5, color=color)
+    matplot.plot(seconds, values, linewidth=0.35, color=color, alpha=1.0 if solid else 0.8)
     matplot.fill_between(seconds, 0, values, linewidth=0.5, color=color,
-                         zorder=2)
+                         zorder=2, alpha=1.0 if solid else 0.5)
     return bitrate_max, bitrate_mean
 
 
@@ -662,7 +655,7 @@ def main():
         save_raw_csv(frames, args.output)
         sys.exit(0)
 
-    prepare_matplot(args.input, duration, args.min, args.max)
+    prepare_matplot(args.input, duration)
 
     legend = None
     if args.show_frame_types and args.stream == "video":
@@ -670,7 +663,7 @@ def main():
     else:
         peak, mean = add_area(
             frames, duration, args.downscale, args.max_display_values,
-            args.stream
+            args.stream, args.solid
         )
 
     draw_horizontal_line_with_text(
@@ -683,6 +676,9 @@ def main():
         pos_h_percent=0.92,
         text="mean ({:,})".format(mean)
     )
+
+    # set y-axis limits if requested
+    matplot.ylim(ymin=args.min, ymax=args.max)
 
     if legend:
         matplot.legend(legend.values(), legend.keys(), loc="upper right")
