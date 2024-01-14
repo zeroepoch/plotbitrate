@@ -1,6 +1,5 @@
-matplotlib
-pyqt6
-setuptools
-wheel
 mypy
 pylint
+setuptools
+wheel
+twine
