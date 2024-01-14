@@ -128,5 +128,5 @@ plotbitrate frames.xml
 Show the bitrate, but fill the area below the curve with a solid color.
 
 ```
-plotbitrate input.mkv --solid
+plotbitrate --solid input.mkv
 ```
