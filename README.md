@@ -130,3 +130,14 @@ Show the bitrate, but fill the area below the curve with a solid color.
 ```
 plotbitrate --solid input.mkv
 ```
+
+It's possible to specify a custom `FFPROBE_PATH` in case you don't have it on your `PATH` or want a custom `ffprobe`:
+
+```
+# Unix
+FFPROBE_PATH=/tmp/ffprobe plotbitrate input.mkv
+
+# Windows
+set FFPROBE_PATH=C:\temp\ffmpeg\bin\ffprobe.exe
+plotbitrate input.mkv
+```

@@ -95,8 +95,12 @@ except ImportError as err:
     matplot = None
     exit_with_error("Missing package 'python3-matplotlib'")
 
+
+# bring your own ffprobe, if you want
+ffprobe = os.environ.get('FFPROBE_PATH', 'ffprobe')
+
 # check for ffprobe in path
-if not shutil.which("ffprobe"):
+if not shutil.which(ffprobe):
     exit_with_error("Missing ffprobe from package 'ffmpeg'")
 
 
@@ -193,7 +197,7 @@ def open_ffprobe_get_format(file_path: str) -> subprocess.Popen:
     for file_path and returns the process.
     """
     return subprocess.Popen(
-        ["ffprobe",
+        [ffprobe,
          "-hide_banner",
          "-loglevel", "error",
          "-show_entries", "format",
@@ -212,7 +216,7 @@ def open_ffprobe_get_frames(
     file_path and returns the process.
     """
     return subprocess.Popen(
-        ["ffprobe",
+        [ffprobe,
          "-hide_banner",
          "-loglevel", "error",
          "-select_streams", stream_selector,
@@ -247,7 +251,7 @@ def save_raw_xml(
         f.truncate()
 
         with subprocess.Popen(
-                ["ffprobe",
+                [ffprobe,
                  "-hide_banner",
                  "-loglevel", "error",
                  "-select_streams", stream_selector,
