@@ -66,18 +66,20 @@ class ConsoleColors:
 
 
 def exit_with_error(error_message: str) -> None:
-    sys.exit(ConsoleColors.ERROR + "Error: " + error_message +
-             ConsoleColors.END_COLOR)
+    sys.exit(ConsoleColors.ERROR + "Error: " + error_message + ConsoleColors.END_COLOR)
 
 
 def print_warning(warning_message: str) -> None:
-    print(ConsoleColors.WARNING + "Warning: " + warning_message +
-          ConsoleColors.END_COLOR)
+    print(
+        ConsoleColors.WARNING + "Warning: " + warning_message + ConsoleColors.END_COLOR
+    )
 
 
 def is_wsl() -> bool:
     platform_info = platform.uname()
-    return platform_info.system == "Linux" and "microsoft" in platform_info.release.lower()
+    return (
+        platform_info.system == "Linux" and "microsoft" in platform_info.release.lower()
+    )
 
 
 # prefer C-based ElementTree
@@ -98,7 +100,7 @@ except ImportError:
 
 
 # bring your own ffprobe, if you want
-ffprobe = os.environ.get('FFPROBE_PATH', 'ffprobe')
+ffprobe = os.environ.get("FFPROBE_PATH", "ffprobe")
 
 # check for ffprobe in path
 if not shutil.which(ffprobe):
@@ -106,10 +108,11 @@ if not shutil.which(ffprobe):
 
 
 def parse_arguments() -> argparse.Namespace:
-    """ Parses all arguments and returns them as an object. """
+    """Parses all arguments and returns them as an object."""
     if sys.version_info >= (3, 6):
-        supported_filetypes = matplotlib.figure.Figure().canvas \
-            .get_supported_filetypes().keys()
+        supported_filetypes = (
+            matplotlib.figure.Figure().canvas.get_supported_filetypes().keys()
+        )
     else:
         fig = matplot.figure()
         supported_filetypes = fig.canvas.get_supported_filetypes().keys()
@@ -122,41 +125,54 @@ def parse_arguments() -> argparse.Namespace:
     format_list.append("csv_raw")
 
     # parse command line arguments
-    parser = argparse.ArgumentParser(
-        description="Graph bitrate for audio/video stream")
+    parser = argparse.ArgumentParser(description="Graph bitrate for audio/video stream")
     parser.add_argument("input", help="input file/stream", metavar="INPUT")
-    parser.add_argument("--version", action="version",
-                        version="%(prog)s {version}".format(
-                            version=__version__))
-    parser.add_argument("-s", "--stream", help="Stream type (default: video)",
-                        choices=["audio", "video"], default="video")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="%(prog)s {version}".format(version=__version__),
+    )
+    parser.add_argument(
+        "-s",
+        "--stream",
+        help="Stream type (default: video)",
+        choices=["audio", "video"],
+        default="video",
+    )
     parser.add_argument("-o", "--output", help="Output file")
-    parser.add_argument("-f", "--format", help="Output file format",
-                        choices=format_list)
-    parser.add_argument("--no-progress", help="Hides progress",
-                        action="store_true")
+    parser.add_argument(
+        "-f", "--format", help="Output file format", choices=format_list
+    )
+    parser.add_argument("--no-progress", help="Hides progress", action="store_true")
     parser.add_argument("--min", help="Set plot minimum (kbps)", type=int, default=0)
     parser.add_argument("--max", help="Set plot maximum (kbps)", type=int)
-    parser.add_argument("--solid", help="Do not use transparency below the curve", action="store_true")
-    parser.add_argument("-t", "--show-frame-types",
-                        help="Show bitrate of different frame types",
-                        action="store_true")
+    parser.add_argument(
+        "--solid", help="Do not use transparency below the curve", action="store_true"
+    )
+    parser.add_argument(
+        "-t",
+        "--show-frame-types",
+        help="Show bitrate of different frame types",
+        action="store_true",
+    )
     parser.add_argument(
         "-d",
         "--downscale",
         help="Enable downscaling of values, so that the visible "
-             "level of detail in the graph is reduced and rendered faster. "
-             "This is useful if the video is very long and an overview "
-             "of the bitrate fluctuation is sufficient.",
-        action="store_true")
+        "level of detail in the graph is reduced and rendered faster. "
+        "This is useful if the video is very long and an overview "
+        "of the bitrate fluctuation is sufficient.",
+        action="store_true",
+    )
     parser.add_argument(
         "--max-display-values",
         help="If downscaling is enabled, set the maximum number of values "
-             "shown on the x axis. Will downscale if video length is longer "
-             "than the given value. Will not downscale if set to -1. "
-             "Not compatible with option --show-frame-types (default: 700)",
+        "shown on the x axis. Will downscale if video length is longer "
+        "than the given value. Will not downscale if set to -1. "
+        "Not compatible with option --show-frame-types (default: 700)",
         type=int,
-        default=700)
+        default=700,
+    )
     arguments = parser.parse_args()
 
     # check if format given without output file
@@ -168,16 +184,18 @@ def parse_arguments() -> argparse.Namespace:
         exit_with_error("Maximum should be greater than minimum")
 
     # check if downscale is missing when max-display-values is given
-    if arguments.max_display_values != \
-            parser.get_default("max_display_values") \
-            and not arguments.downscale:
-        print_warning("Using --max-display-values without "
-                      "--downscale has no effect")
+    if (
+        arguments.max_display_values != parser.get_default("max_display_values")
+        and not arguments.downscale
+    ):
+        print_warning("Using --max-display-values without --downscale has no effect")
 
     # check if downscale and show-frame-types are both given
     if arguments.downscale and arguments.show_frame_types:
-        exit_with_error("Options --downscale and --show-frame-types cannot "
-                        "both be given at the same time")
+        exit_with_error(
+            "Options --downscale and --show-frame-types cannot "
+            "both be given at the same time"
+        )
 
     arguments_dict = vars(arguments)
 
@@ -198,43 +216,48 @@ def open_ffprobe_get_format(file_path: str) -> subprocess.Popen:
     for file_path and returns the process.
     """
     return subprocess.Popen(
-        [ffprobe,
-         "-hide_banner",
-         "-loglevel", "error",
-         "-show_entries", "format",
-         "-print_format", "xml",
-         file_path
-         ],
-        stdout=subprocess.PIPE)
+        [
+            ffprobe,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-show_entries",
+            "format",
+            "-print_format",
+            "xml",
+            file_path,
+        ],
+        stdout=subprocess.PIPE,
+    )
 
 
-def open_ffprobe_get_frames(
-        file_path: str,
-        stream_selector: str
-) -> subprocess.Popen:
+def open_ffprobe_get_frames(file_path: str, stream_selector: str) -> subprocess.Popen:
     """
     Opens an ffprobe process that reads all frame data for
     file_path and returns the process.
     """
     return subprocess.Popen(
-        [ffprobe,
-         "-hide_banner",
-         "-loglevel", "error",
-         "-select_streams", stream_selector,
-         "-threads", str(multiprocessing.cpu_count()),
-         "-print_format", "xml",
-         "-show_entries",
-         "frame=pict_type,pkt_pts_time,best_effort_timestamp_time,pkt_size",
-         file_path
-         ],
-        stdout=subprocess.PIPE)
+        [
+            ffprobe,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-select_streams",
+            stream_selector,
+            "-threads",
+            str(multiprocessing.cpu_count()),
+            "-print_format",
+            "xml",
+            "-show_entries",
+            "frame=pict_type,pkt_pts_time,best_effort_timestamp_time,pkt_size",
+            file_path,
+        ],
+        stdout=subprocess.PIPE,
+    )
 
 
 def save_raw_xml(
-        file_path: str,
-        target_path: str,
-        stream_selector: str,
-        no_progress: bool
+    file_path: str, target_path: str, stream_selector: str, no_progress: bool
 ) -> None:
     """
     Reads all raw frame data from file_path
@@ -252,18 +275,24 @@ def save_raw_xml(
         f.truncate()
 
         with subprocess.Popen(
-                [ffprobe,
-                 "-hide_banner",
-                 "-loglevel", "error",
-                 "-select_streams", stream_selector,
-                 "-threads", str(multiprocessing.cpu_count()),
-                 "-print_format", "xml",
-                 "-show_entries",
-                 "format:frame=pict_type,pkt_pts_time,"
-                 "best_effort_timestamp_time,pkt_size",
-                 file_path
-                 ],
-                stdout=subprocess.PIPE) as p:
+            [
+                ffprobe,
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-select_streams",
+                stream_selector,
+                "-threads",
+                str(multiprocessing.cpu_count()),
+                "-print_format",
+                "xml",
+                "-show_entries",
+                "format:frame=pict_type,pkt_pts_time,"
+                "best_effort_timestamp_time,pkt_size",
+                file_path,
+            ],
+            stdout=subprocess.PIPE,
+        ) as p:
             assert p.stdout is not None
             # start process and iterate over output lines
             for line in p.stdout:
@@ -272,16 +301,18 @@ def save_raw_xml(
                 # for progress
                 # look for lines starting with frame tag
                 # try parsing the time from them and print percent
-                if not no_progress \
-                        and duration > 0 \
-                        and line.lstrip().startswith(b"<frame "):
-
+                if (
+                    not no_progress
+                    and duration > 0
+                    and line.lstrip().startswith(b"<frame ")
+                ):
                     # fix frame tags that include side_data child tags
                     if not line.rstrip().endswith(b"/>"):
                         line = line.replace(b">", b"/>")
                     try:
-                        frame_time = \
-                            try_get_frame_time_from_node(eTree.fromstring(line))
+                        frame_time = try_get_frame_time_from_node(
+                            eTree.fromstring(line)
+                        )
                     except eTree.ParseError:
                         frame_time = None
 
@@ -299,7 +330,7 @@ def save_raw_xml(
 
 
 def save_raw_csv(raw_frames: Iterable[Frame], target_path: str) -> None:
-    """ Saves raw_frames as a csv file. """
+    """Saves raw_frames as a csv file."""
     fields = Frame.get_fields()
 
     with open(target_path, "w", newline="") as file:
@@ -319,11 +350,10 @@ def media_duration(source: str) -> float:
 
 
 def parse_media_duration(source: Union[str, IO]) -> float:
-    """ Parses the source and returns the extracted total duration. """
+    """Parses the source and returns the extracted total duration."""
     format_data = eTree.parse(source)
     format_elem = format_data.find(".//format")
-    duration_str = \
-        format_elem.get("duration") if format_elem is not None else None
+    duration_str = format_elem.get("duration") if format_elem is not None else None
     return float(duration_str) if duration_str is not None else 0
 
 
@@ -338,12 +368,12 @@ def try_get_frame_time_from_node(node: eTree.Element) -> Optional[float]:
     return None
 
 
-def create_progress(duration: int):
+def create_progress(duration: int) -> Callable[[Optional[Frame]], None]:
     # set to negative, so 0% gets reported
     last_percent = -1.0
     offset = None
 
-    def report_progress(frame: Optional[Frame]):
+    def report_progress(frame: Optional[Frame]) -> None:
         nonlocal last_percent
         nonlocal offset
         if frame:
@@ -372,9 +402,9 @@ def frame_elements(source_iterable: Iterable) -> Iterable[eTree.Element]:
 
 
 def read_frame_data_gen(
-        source: str,
-        stream_spec: str,
-        frame_progress_func: Optional[Callable[[Optional[Frame]], None]]
+    source: str,
+    stream_spec: str,
+    frame_progress_func: Optional[Callable[[Optional[Frame]], None]],
 ) -> Generator[Frame, None, None]:
     source_iter = ""  # type: Union[str, IO]
     if source.endswith(".xml"):
@@ -394,7 +424,7 @@ def read_frame_data_gen(
 
 
 def read_frame_data_gen_internal(
-        source: Union[str, IO]
+    source: Union[str, IO],
 ) -> Generator[Frame, None, None]:
     """
     Creates an iterator from source_iterable and yields Frame objects.
@@ -411,15 +441,12 @@ def read_frame_data_gen_internal(
         yield Frame(
             time=time if time else 0,
             size=int(size) if size else 0,
-            pict_type=pict_type if pict_type else "?"
+            pict_type=pict_type if pict_type else "?",
         )
 
 
 def frames_to_kbits(
-        frames: Iterable[Frame],
-        seconds_start: int,
-        seconds_end: int,
-        seconds_offset: int
+    frames: Iterable[Frame], seconds_start: int, seconds_end: int, seconds_offset: int
 ) -> Generator[Tuple[int, int], None, None]:
     """
     Creates a generator yielding every second between seconds_start
@@ -432,8 +459,9 @@ def frames_to_kbits(
     last_frame_size = 0
 
     # loop over every second
-    for second in range(seconds_start + seconds_offset, seconds_end + seconds_offset + 1):
-
+    for second in range(
+        seconds_start + seconds_offset, seconds_end + seconds_offset + 1
+    ):
         # restore size of a saved frame from last iteration
         # if it's for the current second
         if last_frame_second == second:
@@ -464,8 +492,7 @@ def frames_to_kbits(
 
 
 def downscale_bitrate(
-        bitrates: Dict[int, int],
-        factor: int
+    bitrates: Dict[int, int], factor: int
 ) -> Generator[Tuple[int, int], None, None]:
     """
     Groups bitrates together and takes the highest bitrate as the value.
@@ -503,10 +530,10 @@ def downscale_bitrate(
 
 
 def prepare_matplot(
-        window_title: str,
-        duration: int,
+    window_title: str,
+    duration: int,
 ) -> None:
-    """ Prepares the chart and sets up a new figure """
+    """Prepares the chart and sets up a new figure"""
 
     matplot.figure(figsize=[10, 4])
     matplot.get_current_fig_manager().set_window_title(window_title)
@@ -521,19 +548,19 @@ def prepare_matplot(
     # format axes values
     matplot.gcf().axes[0].xaxis.set_major_formatter(
         matplotlib.ticker.FuncFormatter(
-            lambda x, loc: datetime.timedelta(seconds=int(x))))
+            lambda x, loc: datetime.timedelta(seconds=int(x))
+        )
+    )
     matplot.gca().get_yaxis().set_major_formatter(
-        matplotlib.ticker.FuncFormatter(
-            lambda x, loc: "{:,}".format(int(x))))
+        matplotlib.ticker.FuncFormatter(lambda x, loc: "{:,}".format(int(x)))
+    )
 
 
 def add_stacked_areas(
-        frames: Iterable[Frame],
-        duration: int
+    frames: Iterable[Frame], duration: int
 ) -> Tuple[int, int, Dict[str, matplotlib.collections.PolyCollection]]:
-    """ Calculates the bitrate for each frame type
-    and adds a stacking bar for each
-    """
+    """Calculates the bitrate for each frame type
+    and adds a stacking bar for each"""
     bars = {}
     sums_of_values = []  # type: List[int]
     frames_list = frames if isinstance(frames, list) else list(frames)
@@ -558,27 +585,25 @@ def add_stacked_areas(
             values_max = values
         else:
             values_min = sums_of_values
-            values_max = [
-                sum(pair) for pair in zip(sums_of_values, values)
-            ]
+            values_max = [sum(pair) for pair in zip(sums_of_values, values)]
         sums_of_values = values_max
-        color = Color[frame_type].value if frame_type in dir(Color) \
-            else Color.FRAME.value
+        color = (
+            Color[frame_type].value if frame_type in dir(Color) else Color.FRAME.value
+        )
         bars[frame_type] = matplot.fill_between(
-            seconds, values_min, values_max, linewidth=0.5, color=color,
-            zorder=2
+            seconds, values_min, values_max, linewidth=0.5, color=color, zorder=2
         )
 
     return max(sums_of_values), int(statistics.mean(sums_of_values)), bars
 
 
 def add_area(
-        frames: Iterable[Frame],
-        duration: int,
-        downscale: bool,
-        max_display_values: int,
-        stream_type: str,
-        solid: bool
+    frames: Iterable[Frame],
+    duration: int,
+    downscale: bool,
+    max_display_values: int,
+    stream_type: str,
+    solid: bool,
 ) -> Tuple[int, int]:
     # transport stream files may not start from time=0, so work out what the actual start time is
     # then work using that as an offset.
@@ -596,17 +621,22 @@ def add_area(
     seconds = list(bitrates.keys())
     values = list(bitrates.values())
     color = Color.AUDIO.value if stream_type == "audio" else Color.FRAME.value
-    matplot.plot(seconds, values, linewidth=0.35, color=color, alpha=1.0 if solid else 0.8)
-    matplot.fill_between(seconds, 0, values, linewidth=0.5, color=color,
-                         zorder=2, alpha=1.0 if solid else 0.5)
+    matplot.plot(
+        seconds, values, linewidth=0.35, color=color, alpha=1.0 if solid else 0.8
+    )
+    matplot.fill_between(
+        seconds,
+        0,
+        values,
+        linewidth=0.5,
+        color=color,
+        zorder=2,
+        alpha=1.0 if solid else 0.5,
+    )
     return bitrate_max, bitrate_mean
 
 
-def draw_horizontal_line_with_text(
-        pos_y: int,
-        pos_h_percent: float,
-        text: str
-) -> None:
+def draw_horizontal_line_with_text(pos_y: int, pos_h_percent: float, text: str) -> None:
     # calculate line position (above line)
     text_x = matplot.xlim()[1] * pos_h_percent
     text_y = pos_y + ((matplot.ylim()[1] - matplot.ylim()[0]) * 0.015)
@@ -614,8 +644,12 @@ def draw_horizontal_line_with_text(
     # draw as think black line with text
     matplot.axhline(pos_y, linewidth=1.5, color="black")
     matplot.text(
-        text_x, text_y, text,
-        horizontalalignment="center", fontweight="bold", color="black"
+        text_x,
+        text_y,
+        text,
+        horizontalalignment="center",
+        fontweight="bold",
+        color="black",
     )
 
 
@@ -638,11 +672,10 @@ def main():
             exit_with_error(err.msg)
 
     # if the output is raw xml, just call the function and exit
-    if args.format == "xml_raw" \
-            or (args.output and args.output.endswith(".xml") and args.format is None):
-        save_raw_xml(
-            args.input, args.output, args.stream_spec, args.no_progress
-        )
+    if args.format == "xml_raw" or (
+        args.output and args.output.endswith(".xml") and args.format is None
+    ):
+        save_raw_xml(args.input, args.output, args.stream_spec, args.no_progress)
         sys.exit(0)
 
     duration = math.floor(media_duration(args.input))
@@ -650,13 +683,12 @@ def main():
         exit_with_error("Failed to determine stream duration")
 
     progress_func = create_progress(duration) if not args.no_progress else None
-    frames = read_frame_data_gen(
-        args.input, args.stream_spec, progress_func
-    )
+    frames = read_frame_data_gen(args.input, args.stream_spec, progress_func)
 
     # if the output is csv raw, write the file and we're done
-    if args.format == "csv_raw" \
-            or (args.output and args.output.endswith(".csv") and args.format is None):
+    if args.format == "csv_raw" or (
+        args.output and args.output.endswith(".csv") and args.format is None
+    ):
         save_raw_csv(frames, args.output)
         sys.exit(0)
 
@@ -667,19 +699,19 @@ def main():
         peak, mean, legend = add_stacked_areas(frames, duration)
     else:
         peak, mean = add_area(
-            frames, duration, args.downscale, args.max_display_values,
-            args.stream, args.solid
+            frames,
+            duration,
+            args.downscale,
+            args.max_display_values,
+            args.stream,
+            args.solid,
         )
 
     draw_horizontal_line_with_text(
-        pos_y=peak,
-        pos_h_percent=0.08,
-        text="peak ({:,})".format(peak)
+        pos_y=peak, pos_h_percent=0.08, text="peak ({:,})".format(peak)
     )
     draw_horizontal_line_with_text(
-        pos_y=mean,
-        pos_h_percent=0.92,
-        text="mean ({:,})".format(mean)
+        pos_y=mean, pos_h_percent=0.92, text="mean ({:,})".format(mean)
     )
 
     # set y-axis limits if requested

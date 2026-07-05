@@ -6,4 +6,4 @@ class Frame:
 
     @staticmethod
     def get_fields():
-        return ['time', 'size', 'pict_type']
+        return ["time", "size", "pict_type"]
