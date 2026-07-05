@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plotbitrate"
+dynamic = ["version"]
+description = "A simple bitrate plotter for media files"
+readme = "README.md"
+authors = [
+    {name = "Eric Work", email = "work.eric@gmail.com"},
+    {name = "Steve Schmidt", email = "azcane@gmail.com"},
+]
+license = "BSD-2-Clause"
+license-files = ["LICENSE"]
+keywords = ["ffprobe", "bitrate", "plot"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Topic :: Multimedia :: Video",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+]
+requires-python = ">=3.6"
+dependencies = [
+    "matplotlib",
+    "PyQt6",
+]
+
+[project.urls]
+homepage = "https://github.com/zeroepoch/plotbitrate"
+
+[project.scripts]
+plotbitrate = "plotbitrate:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "plotbitrate.__version__"}
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "ruff",
+    "build",
+    "twine",
+]

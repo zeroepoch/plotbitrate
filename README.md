@@ -21,8 +21,7 @@ Requirements:
 * PyQt5 or PyQt6 (optional for image file output)
 
 For using the script from source, install the requirements with
-`pip install -r requirements.txt` or use the `requirements-dev.txt`
-for development purposes.
+`pip install -e .` or use `pip install --group dev` for development purposes.
 
 Installation
 ------------

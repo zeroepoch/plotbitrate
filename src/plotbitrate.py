@@ -2,17 +2,18 @@
 #
 # FFProbe Bitrate Graph
 #
-# Original work Copyright (c) 2013-2023, Eric Work
-# Modified work Copyright (c) 2019-2021, Steve Schmidt
-# All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright 2013-2026 Eric Work
+# Copyright 2019-2021 Steve Schmidt
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
-#   Redistributions of source code must retain the above copyright notice,
+# * Redistributions of source code must retain the above copyright notice,
 #   this list of conditions and the following disclaimer.
 #
-#   Redistributions in binary form must reproduce the above copyright notice,
+# * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
 #
