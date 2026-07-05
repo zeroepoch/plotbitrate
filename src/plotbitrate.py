@@ -46,13 +46,13 @@ import sys
 from collections import OrderedDict
 from enum import Enum
 from importlib import util
-from typing import Callable, Union, List, IO, Iterable, Optional, Dict, Tuple, \
-    Generator
+from typing import Callable, Union, IO, Iterable, Optional, Dict, Tuple, Generator
+from typing import List  # noqa: F401
 from frame import Frame
 
 
 class Color(Enum):
-    I = "red"
+    I = "red"  # noqa: E741
     P = "green"
     B = "blue"
     AUDIO = "C2"
@@ -90,7 +90,7 @@ except ImportError:
 try:
     import matplotlib  # type: ignore
     import matplotlib.pyplot as matplot  # type: ignore
-except ImportError as err:
+except ImportError:
     # satisfy undefined variable warnings
     matplotlib = None
     matplot = None
@@ -341,13 +341,13 @@ def try_get_frame_time_from_node(node: eTree.Element) -> Optional[float]:
 def create_progress(duration: int):
     # set to negative, so 0% gets reported
     last_percent = -1.0
-    offset = -1
+    offset = None
 
     def report_progress(frame: Optional[Frame]):
         nonlocal last_percent
         nonlocal offset
         if frame:
-            if offset == -1:
+            if offset is None:
                 offset = frame.time
             percent = round(((frame.time - offset) / duration) * 100.0, 1)
             if percent > last_percent:

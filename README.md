@@ -1,7 +1,6 @@
-PlotBitrate
-===========
+# PlotBitrate
 
-FFProbe Bitrate Graph
+**FFProbe Bitrate Graph**
 
 This project contains a script for plotting the bitrate of an audio or video
 stream over time. To get the frame bitrate data ffprobe is used from the ffmpeg
@@ -11,22 +10,25 @@ or each frame type on the same graph with lines for the peak and mean bitrates.
 The resulting bitrate graph can be saved as an image.
 
 Possible outputs are:
-* Image types (png, svg, pdf, ...)
-* Raw frame data (csv, xml)
+
+- Image types (png, svg, pdf, ...)
+- Raw frame data (csv, xml)
 
 Requirements:
-* Python >= 3.6
-* FFmpeg >= 1.2 with the ffprobe command
-* Matplotlib
-* PyQt5 or PyQt6 (optional for image file output)
+
+- Python >= 3.6
+- FFmpeg >= 1.2 with the ffprobe command
+- Matplotlib
+- PyQt5 or PyQt6 (optional for image file output)
 
 For using the script from source, install the requirements with
 `pip install -e .` or use `pip install --group dev` for development purposes.
 
-Installation
-------------
+## Installation
 
-`pip install plotbitrate`
+```
+pip install plotbitrate
+```
 
 If you encounter the error message `qt.qpa.plugin: Could not load the Qt
 platform plugin "xcb" in "" even though it was found.` while running
@@ -36,8 +38,7 @@ resolve the issue, then you can try using `QT_DEBUG_PLUGINS=1 plotbitrate
 input.mkv 2>&1 | grep "No such file"` to determine if other libraries are
 missing.
 
-Useful Options
---------------
+## Useful Options
 
 The raw frame data can be stored in an xml file with the option `-f xml_raw`,
 which the graph can be plotted from. This is useful if the graph should be
@@ -54,8 +55,7 @@ types as this would lead to wrong graphs. This behavior can be adjusted with
 the `--max-display-values` option. The default value is 700, meaning that at
 most 700 individual seconds/bars are drawn.
 
-CSV Output
-----------
+## CSV Output
 
 You may find it useful to save the raw frame data to a CSV file so the frame
 data can be processed using another tool. This turns `plotbitrate` into more of
@@ -79,8 +79,7 @@ The necessary input data can be generated using:
 plotbitrate -o frames.csv input.mkv
 ```
 
-Usage Examples
---------------
+## Usage Examples
 
 Show video stream bitrate in a window with progress.
 
@@ -130,7 +129,8 @@ Show the bitrate, but fill the area below the curve with a solid color.
 plotbitrate --solid input.mkv
 ```
 
-It's possible to specify a custom `FFPROBE_PATH` in case you don't have it on your `PATH` or want a custom `ffprobe`:
+It's possible to specify a custom `FFPROBE_PATH` in case you don't have it on
+your `PATH` or want a custom `ffprobe`:
 
 ```
 # Unix
