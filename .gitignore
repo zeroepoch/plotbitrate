@@ -7,6 +7,7 @@ __pycache__/
 build/
 dist/
 *.egg-info/
+uv.lock
 
 # Editor/development files
 .venv/
